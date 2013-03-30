@@ -20,6 +20,9 @@ SensorUtils::SensorUtils()
 	reader[5] = &SensorUtils::measureAnemo;
 	reader[6] = &SensorUtils::measureVane;
 	reader[7] = &SensorUtils::measurePluvio;
+	
+	for(uint8_t i=0; i<8; i++)
+		measuringInterval[i] = xbeeZB.defaultTime2Wake;
 }
 
 

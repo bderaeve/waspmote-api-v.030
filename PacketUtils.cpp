@@ -10,8 +10,11 @@
 InsertData * Inserter[5] = {&InsertTemperature, &InsertHumidity, &InsertPressure,
 				&InsertBattery, &InsertCO2};		//WORKS
 
-TreatData * myTreatPacket[7] = {&ErrorMessage, &IO_Request, &IO_Data, &CF_Request,
-				&CF_Response, &Add_Node_Request, &Add_Node_Response}; 
+TreatData * myTreatPacket[13] = {&NotInUse, &Add_Node_Request, &Add_Node_Response,
+			&Mask_Request, &Mask_Response, &Change_Node_Frequency_Request,
+			&Change_Node_Frequency_Response, &Change_Sensor_Frequency_Request,
+			&Change_Sensor_Frequency_Response, &IO_Request, &IO_Data, 
+			&Receive_Error,	&Send_Error}; 
 				
 
 /*PacketUtils::PacketUtils() : inserter {&InsertTemperature, &InsertHumidity, &InsertPressure,
@@ -141,16 +144,28 @@ void PacketUtils::testComm(uint8_t * destination, uint8_t type, const char * mes
 void PacketUtils::testComm2(uint8_t * destination, uint8_t type)
 {
 	COMM.sendMessage(destination, type, "TEST6");
-	//USB.println("NEGERS");
+	USB.println("PRINT SOMETHING");
 }
 
 void PacketUtils::testComm3(uint8_t * destination, uint8_t type, const char * message)
 {
 	const char * mes = "test7";
 	
-	COMM.sendMessage(destination, type, mes);
+	COMM.sendMessage(destination, type, message);
 
 	USB.println(mes);
+}
+
+void PacketUtils::testComm4(const char * mess, const char * desti)
+{
+	COMM.sendMessageLocalWorking(mess, desti);
+}
+
+void PacketUtils::testComm5(const char * mess, uint8_t type, const char * desti)
+{
+	COMM.sendMessageLocalWorkingWithType(mess, type, desti);
+	
+	//USB.print("TEST");
 }
 
 //uint8_t PacketUtils::setSensorData(uint16_t * mask)
@@ -198,13 +213,17 @@ uint8_t PacketUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 	//free(packetData);
 	//packetData = NULL;
 	*/
-	const char * mes = "TEST MESSAGE 5";
+	const char * mes = "TESTMESSAGE";
 	COMM.sendMessage(destination, 2, mes);
 	//USB.println("NEGERS");
 	
 	return error;		
 }
 
+bool PacketUtils::areSameMACAddresses(uint8_t * ad1, uint8_t * ad2)
+{
+	return ( ad1[4] == ad2[4] && ad1[5] == ad2[5] && ad1[6] == ad2[6] && ad1[7] == ad2[7] );
+}
 
 
 /*********************************************************************************************************
@@ -282,21 +301,135 @@ uint8_t PacketUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
  *	STATIC FUNCTION POINTERS TO EASILY ANALYSE RECEIVED PACKAGES:
  ********************************************************************************************************/	
 	
-	//In normal operation a libelium node should never receive any error messages!
-	//However if this occurs it will be notified to the gateway
-	uint8_t ErrorMessage(packetXBee * receivedPaq)
+	uint8_t NotInUse(packetXBee * receivedPaq)  // APP_ID = 0
 	{
 		uint8_t error = 2;
 		char aux[MAX_DATA];
 		
-		PAQ.packetData = (char *) calloc(1, sizeof(char) * MAX_DATA);
+		sprintf(aux, "Node ' %d ' received an invalid packet of type 0: DONT_USE", xbeeZB.nodeID);
 		
-		PAQ.readPacketData(receivedPaq);
-		sprintf(aux, "Node ' %d ' received the following error message: %s", xbeeZB.nodeID, PAQ.packetData);
+		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, aux);
 		
-		COMM.sendMessage(xbeeZB.GATEWAY_MAC, aux);
-		
+		return error;
 	}
+	
+	
+	uint8_t Add_Node_Request(packetXBee * receivedPaq)  // APP_ID = 1
+	{
+		uint8_t error = 2;
+		uint16_t receivedPhysicalMask = 0;
+		PAQ.packetData = (char *) calloc(2, sizeof(char));
+		
+		// Save the origin address
+		PAQ.getPacketOriginAddress(receivedPaq);
+	
+		//Do the settings
+		receivedPhysicalMask =( (unsigned int) receivedPaq->data[0]*256) + receivedPaq->data[1];
+		xbeeZB.setPhysicalSensorMask(&receivedPhysicalMask);
+		//TODO: SET NODE ID
+		
+		//Send answer back:
+		PAQ.setPacketMask(xbeeZB.physicalSensorMask);
+		error = COMM.sendMessage(PAQ.originAddress, ADD_NODE_RES, PAQ.packetData);
+		
+		free(PAQ.packetData);
+		PAQ.packetData = NULL;
+		
+		return error;
+	}
+	uint8_t Add_Node_Response(packetXBee * receivedPaq) // APP_ID = 2
+	{
+		uint8_t error = 2;
+		char aux[MAX_DATA];
+		
+		sprintf(aux, "Node ' %d ' received an invalid packet of type 2: ADD_NODE_RES", xbeeZB.nodeID);
+		
+		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, aux);
+		
+		return error;
+	}
+	
+	
+	uint8_t Mask_Request(packetXBee * receivedPaq)  // APP_ID = 3
+	{
+		uint8_t error = 2;
+		char aux[MAX_DATA];
+		
+		PAQ.getPacketOriginAddress(receivedPaq);
+		
+		// Only gateway is allowed to request a nodes physical mask
+		if( PAQ.areSameMACAddresses(PAQ.originAddress, xbeeZB.GATEWAY_MAC ) )
+		{
+			//Send back mask
+			PAQ.setPacketMask(xbeeZB.physicalSensorMask);
+			error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, MASK_RES, PAQ.packetData);
+		}
+		else
+		{
+			//Send error
+			sprintf(aux, "Node ' %d ' received an unauthorized request for his physical sensor mask", xbeeZB.nodeID);
+			error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, aux);	
+		}
+		return error;
+	}
+	uint8_t Mask_Response(packetXBee * receivedPaq)  // APP_ID = 4
+	{
+		uint8_t error = 2;
+		char aux[MAX_DATA];
+		
+		sprintf(aux, "Node ' %d ' received an invalid packet of type 4: MASK_RES", xbeeZB.nodeID);
+		
+		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, aux);
+		
+		return error;
+	}
+	
+	
+	uint8_t Change_Node_Frequency_Request(packetXBee * receivedPaq) // APP_ID = 5
+	{
+		uint8_t error = 2;
+		uint16_t receivedTime = 0;
+		char aux[MAX_DATA];
+		
+		receivedTime = ( (unsigned int) receivedPaq->data[0]*256) + receivedPaq->data[1];
+		if( !xbeeZB.setNewSleepTime( receivedTime ) )
+		{
+			PAQ.packetData = PAQ.packetData = (char *) calloc(2, sizeof(char));
+			PAQ.packetData[0] = xbeeZB.defaultTime2Wake/256;
+			PAQ.packetData[1] = xbeeZB.defaultTime2Wake%256;
+			
+			error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, CH_NODE_FREQ_RES, PAQ.packetData); //send answer	
+			
+			free(PAQ.packetData);
+			PAQ.packetData = NULL;
+		}
+		else
+		{
+			sprintf(aux, "Node ' %d ' received an invalid new default sleep time", xbeeZB.nodeID);
+			error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, aux);	
+		}
+		return error;	
+	}
+	uint8_t Change_Node_Frequency_Response(packetXBee * receivedPaq) // APP_ID = 6
+	{
+		uint8_t error = 2;
+		char aux[MAX_DATA];
+		
+		sprintf(aux, "Node ' %d ' received an invalid packet of type 6: CH_NODE_FREQ_RES", xbeeZB.nodeID);
+		
+		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, aux);
+		
+		return error;	
+	}
+	
+	
+	uint8_t Change_Sensor_Frequency_Request(packetXBee * receivedPaq) {}  // APP_ID = 7
+	
+	uint8_t Change_Sensor_Frequency_Response(packetXBee * receivedPaq) {}  // APP_ID = 8	
+	
+	
+	
+
 	
 	
 	uint8_t IO_Request(packetXBee * receivedPaq)
@@ -379,38 +512,38 @@ uint8_t PacketUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 	
 	
 	
-	uint8_t IO_Data(packetXBee *)
-	{
-		
-	
-	}
-	uint8_t CF_Request(packetXBee *){}
-	uint8_t CF_Response(packetXBee *){}
-	
-	
-	uint8_t Add_Node_Request(packetXBee * receivedPaq)
+	uint8_t IO_Data(packetXBee *)  // APP_ID = 10
 	{
 		uint8_t error = 2;
-		uint16_t receivedPhysicalMask = 0;
-		PAQ.packetData = (char *) calloc(2, sizeof(char));
+		char aux[MAX_DATA];
 		
-		// Save the origin address
-		PAQ.getPacketOriginAddress(receivedPaq);
-	
-		//Do the settings
-		receivedPhysicalMask =( (unsigned int) receivedPaq->data[0]*256) + receivedPaq->data[1];
-		xbeeZB.setPhysicalSensorMask(&receivedPhysicalMask);
+		sprintf(aux, "Node ' %d ' received an invalid packet of type 10: IO_DATA", xbeeZB.nodeID);
 		
-		//Send answer back:
-		PAQ.setPacketMask(xbeeZB.physicalSensorMask);
-		COMM.sendMessage(PAQ.originAddress, ADD_NODE_RES, PAQ.packetData);
+		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, aux);
 		
-		free(PAQ.packetData);
-		PAQ.packetData = NULL;
+		return error;			
 	}
 	
+		//In normal operation a libelium node should never receive any error messages!
+	//However if this occurs it will be notified to the gateway
+	uint8_t Receive_Error(packetXBee * receivedPaq)
+	{
+		uint8_t error = 2;
+		char aux[MAX_DATA];
+		
+		PAQ.packetData = (char *) calloc(1, sizeof(char) * MAX_DATA);
+		
+		PAQ.readPacketData(receivedPaq);
+		sprintf(aux, "Node ' %d ' received the following error message: %s", xbeeZB.nodeID, PAQ.packetData);
+		
+		COMM.sendMessage(xbeeZB.GATEWAY_MAC, aux);
+		
+	}
 	
-	uint8_t Add_Node_Response(packetXBee *){}
+	uint8_t Send_Error(packetXBee * receivedPaq){}
+		
+	
+
 
 
 PacketUtils PAQ = PacketUtils();

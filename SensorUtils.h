@@ -16,10 +16,6 @@ typedef enum {TEMPERATURE = 0x0001, HUMIDITY = 0x0002, PRESSURE = 0x0004,
 	BATTERY = 0x0008, CO2 = 0x0010, ANEMO = 0x0020, VANE = 0x040, PLUVIO = 0x080} 
 	SensorType;
 
-typedef enum {TEMP_INTERVAL, HUM_INTERVAL, PRES_INTERVAL, BAT_INTERVAL, CO2_INTERVAL,
-	ANEMO_INTERVAL, VANE_INTERVAL, PLUVIO_INTERVAL}
-	SensorInterval;
-
 /******************************************************************************
  * Class
  ******************************************************************************/
@@ -180,7 +176,10 @@ class SensorUtils
 		/*!   teaching and learning spaces) 
 		/*!	  --> 2B
 		 */
-		unsigned char co_2[2];		   
+		unsigned char co_2[2];		
+
+
+		uint16_t measuringInterval[8];
 	
  };
  

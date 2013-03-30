@@ -50,6 +50,8 @@ class CommUtils
 		 */
 		CommUtils(){};
 		
+		//other one with panID; nodeID, defaultGateway, etc
+		uint8_t setupXBee();
 		
 		//! It gets and prints the current node association state.
 		/*! If necessary the function will wait for 2 minutes until the XBee module has joined
@@ -60,6 +62,7 @@ class CommUtils
 		*/ 
 		uint8_t checkNodeAssociation();
 		
+		
 		//! It prints the current association state stored in xbeeZB.associationIndication
 		void printAssociationState();
 		
@@ -68,9 +71,8 @@ class CommUtils
 		void printCurrentNetworkParams();
 		
 		
-		
 		//! It checks for any received messages 
-		/*! In debug mode it also stores possible messages in 'receivedData[MAX_DATA]'
+		/*! In debug mode it also stores possible messages in 'receivedData[MAX_DATA]' and prints the content
 		/*! If necessary the function will wait for 20 sec until the XBee module has received
 		/*!	something.
 		/*!!!! IT WILL ALSO CALL THE CORRESPONDING FUNCTION TO DEAL WITH THE INCOMING TYPE OF MESSAGES !!!!!
@@ -84,15 +86,10 @@ class CommUtils
 		
 		
 		
-		
-		
-		
-		
-		
-		
-		
+
 		bool sendMessageLocalWorking(const char *, const char *);
-		
+		bool sendMessageLocalWorkingWithType(const char *, uint8_t, const char *);
+
 		
 		
 		//! It sends a packet of type (applicationID) 0: 'ERRORMESSAGE' to destination

@@ -18,6 +18,15 @@
 
 WaspXBeeZBNode::WaspXBeeZBNode()
 {
+	panid[0] = 0x00;
+	panid[1] = 0x00;
+	panid[2] = 0x00;
+	panid[3] = 0x00;
+	panid[4] = 0x00;
+	panid[5] = 0x00;
+	panid[6] = 0x00;
+	panid[7] = 0xAA;
+
 	GATEWAY_MAC[0] = 0x00;
 	GATEWAY_MAC[1] = 0x13;
 	GATEWAY_MAC[2] = 0xA2;
@@ -28,10 +37,11 @@ WaspXBeeZBNode::WaspXBeeZBNode()
 	GATEWAY_MAC[7] = 0x74;
 	
 	#ifdef NODE_DEBUG
-		defaultTime2Wake = "00:00:00:10";  //"dd:hh:mm:ss"
+		defaultTime2Wake = 1;   //"00:00:00:10"
 	#else
-		defaultTime2Wake = "00:00:15:00";
+		defaultTime2Wake = 90;	//"00:00:15:00";
 	#endif
+	convertTime2Wait2Char(defaultTime2Wake);	
 }
 
 
@@ -47,6 +57,113 @@ void WaspXBeeZBNode::setGatewayMacAddress(uint8_t address[8])
 	GATEWAY_MAC[7] = address[7];
 }
 
+
+uint8_t WaspXBeeZBNode::setNewSleepTime(uint16_t newTime)
+{
+	uint8_t error = 2;
+	
+	if( newTime > 0)
+	{
+		error = 0;
+		defaultTime2Wake = newTime;
+		convertTime2Wait2Char(newTime);
+	}
+	else
+		error = 1;
+	
+	return error;
+}
+
+
+void WaspXBeeZBNode::setActiveSensorMask(int count, ...)
+{
+	va_list arguments;
+	va_start (arguments, count);
+	//int types;
+	//uint16_t types = 0;
+	activeSensorMask = 0;
+	int sum = 0;
+	
+	for(int x = 0; x < count; x++)
+	{
+		activeSensorMask +=  va_arg( arguments, int );
+		#ifdef NODE_DEBUG
+			USB.print("sensorMask in for = ");
+			USB.println( (int) activeSensorMask );
+		#endif
+	}
+	
+	setActiveSensorMaskLength();
+	
+	#ifdef NODE_DEBUG
+	USB.print("sum sensorMask = ");
+	USB.println( (int) activeSensorMask );
+	#endif
+}
+
+
+void WaspXBeeZBNode::setPhysicalSensorMask(uint16_t * mask)
+{
+	physicalSensorMask = *mask;
+	setPhysicalSensorMaskLength();
+}
+
+
+void WaspXBeeZBNode::setPhysicalSensorMaskLength()
+{
+	uint16_t indicator = 32768; // 2^15
+	physicalSensorMaskLength = 16;
+	bool stop = false;
+	uint8_t i = 0;
+	
+	while( i<16 && !stop)
+	{
+		if(indicator & physicalSensorMask)
+			stop = true;
+		else
+			physicalSensorMaskLength--;
+		
+		i++;
+		indicator >>= 1;
+	}
+	
+	#ifdef NODE_DEBUG
+		USB.print("physicalSensorMaskLength = ");
+		USB.println( (int) physicalSensorMaskLength);
+	#endif
+}
+
+
+void WaspXBeeZBNode::setActiveSensorMaskLength()
+{
+	uint16_t indicator = 32768; // 2^15
+	activeSensorMaskLength = 16;
+	bool stop = false;
+	uint8_t i = 0;
+	
+	while( i<16 && !stop)
+	{
+		if(indicator & activeSensorMask)
+			stop = true;
+		else
+			activeSensorMaskLength--;
+		
+		i++;
+		indicator >>= 1;
+	}
+	
+	#ifdef NODE_DEBUG
+		USB.print("activeSensorMaskLength = ");
+		USB.println( (int) activeSensorMaskLength);
+	#endif
+}
+
+
+void WaspXBeeZBNode::printSensorMask(uint16_t mask)
+{
+	USB.print("sensorMask = ");
+	USB.println( (int) mask );
+}
 
 
 void WaspXBeeZBNode::convertTime2Wait2Char(uint16_t t2w)
@@ -135,93 +252,7 @@ void WaspXBeeZBNode::convertTime2Wait2Char(uint16_t t2w)
 
 
 
-void WaspXBeeZBNode::setActiveSensorMask(int count, ...)
-{
-	va_list arguments;
-	va_start (arguments, count);
-	//int types;
-	//uint16_t types = 0;
-	activeSensorMask = 0;
-	int sum = 0;
-	
-	for(int x = 0; x < count; x++)
-	{
-		activeSensorMask +=  va_arg( arguments, int );
-		#ifdef NODE_DEBUG
-			USB.print("sensorMask in for = ");
-			USB.println( (int) activeSensorMask );
-		#endif
-	}
-	
-	setActiveSensorMaskLength();
-	
-	#ifdef NODE_DEBUG
-	USB.print("sum sensorMask = ");
-	USB.println( (int) activeSensorMask );
-	#endif
-}
 
-void WaspXBeeZBNode::setPhysicalSensorMask(uint16_t * mask)
-{
-	physicalSensorMask = *mask;
-	setPhysicalSensorMaskLength();
-}
-
-void WaspXBeeZBNode::setPhysicalSensorMaskLength()
-{
-	uint16_t indicator = 32768; // 2^15
-	physicalSensorMaskLength = 16;
-	bool stop = false;
-	uint8_t i = 0;
-	
-	while( i<16 && !stop)
-	{
-		if(indicator & physicalSensorMask)
-			stop = true;
-		else
-			physicalSensorMaskLength--;
-		
-		i++;
-		indicator >>= 1;
-	}
-	
-	#ifdef NODE_DEBUG
-		USB.print("physicalSensorMaskLength = ");
-		USB.println( (int) physicalSensorMaskLength);
-	#endif
-}
-
-void WaspXBeeZBNode::setActiveSensorMaskLength()
-{
-	uint16_t indicator = 32768; // 2^15
-	activeSensorMaskLength = 16;
-	bool stop = false;
-	uint8_t i = 0;
-	
-	while( i<16 && !stop)
-	{
-		if(indicator & activeSensorMask)
-			stop = true;
-		else
-			activeSensorMaskLength--;
-		
-		i++;
-		indicator >>= 1;
-	}
-	
-	#ifdef NODE_DEBUG
-		USB.print("activeSensorMaskLength = ");
-		USB.println( (int) activeSensorMaskLength);
-	#endif
-}
-
-
-
-void WaspXBeeZBNode::printSensorMask(uint16_t mask)
-{
-	USB.print("sensorMask = ");
-	USB.println( (int) mask );
-}
 
 
 

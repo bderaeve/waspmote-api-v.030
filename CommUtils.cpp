@@ -8,60 +8,167 @@
 
 #include <inttypes.h>
 
+uint8_t CommUtils::setupXBee()
+{
+	uint8_t error = 2;
+	xbeeZB.init(ZIGBEE,FREQ2_4G,NORMAL);
+	
+	xbeeZB.ON();
+	delay(1000);
 
+	// 1.1 Set PANID: 0x00000000000000AA 
+		if(!xbeeZB.setPAN(xbeeZB.panid))
+		{
+			error = 0;
+			#ifdef COMM_DEBUG
+				USB.println("setPAN ok");
+			#endif
+		}
+		else 
+		{
+			error = 1;
+			#ifdef COMM_DEBUG
+				USB.println("setPAN error");
+			#endif 
+		}
+	// 1.2 set all possible channels to scan, channels from 0x0B to 0x18 (0x19 and 0x1A are excluded)
+		if(!xbeeZB.setScanningChannels(0x3F,0xFF))
+		{
+			error = 0;
+			#ifdef COMM_DEBUG
+				USB.println("setScanningChannels ok");
+			#endif
+		}
+		else 
+		{
+			error = 1;
+			#ifdef COMM_DEBUG
+				USB.println("setScanningChannels error");
+			#endif
+		}
+	// 1.3 It sets the time the Energy Scan will be performed
+		if(!xbeeZB.setDurationEnergyChannels(3)) 
+		{
+			error = 0;
+			#ifdef COMM_DEBUG
+				USB.println("setDurationEnergyChannels ok");
+			#endif
+		}
+		else
+		{
+			error = 1;
+			#ifdef COMM_DEBUG
+				USB.println("setDurationEnergyChannels error");
+			#endif
+		}
+	// 1.4 Set channel verification JV=1 in order to make the XBee module to scan new coordinator
+		if(!xbeeZB.setChannelVerification(1))
+		{
+			error = 0;
+			#ifdef COMM_DEBUG
+				USB.println("setChannelVerification ok");
+			#endif
+		}
+		else
+		{
+			error = 1;
+			#ifdef COMM_DEBUG
+				USB.println("setChannelVerification error");
+			#endif
+		}
+	
+	// 1.5 Write values to XBEE memory	
+		xbeeZB.writeValues();	
+	
+	// 1.6 Reboot the XBee module 
+		xbeeZB.OFF(); 
+		delay(3000); 
+		xbeeZB.ON(); 
+		delay(3000); 
+	
+	
+	// 2. WAIT for association:
+		if( !checkNodeAssociation() )
+		{
+			error = 0;
+			#ifdef COMM_DEBUG
+				USB.println("checkNodeAssociation() ok");
+			#endif
+		}
+		else
+		{
+			error = 1;
+			#ifdef COMM_DEBUG
+				USB.println("ERROR CHECKING NODE ASSOCIATION");  
+			#endif
+		}
+	
+	return error;
+}
 
 uint8_t CommUtils::checkNodeAssociation()
 {
 	uint8_t error = 2;
 	long previous = millis();
 	
-	xbeeZB.getAssociationIndication();
-	while( xbeeZB.associationIndication != 0 && (millis()-previous) < 120000)
+	if(! xbeeZB.getAssociationIndication() )
 	{
-		USB.println("\n\n-----> not associated <----------");
-		printCurrentNetworkParams();
-		
-		delay(6000);
-		
-		xbeeZB.getAssociationIndication();
-		printAssociationState();	
-	}
-	
-	if(!xbeeZB.associationIndication) 
-	{
-		error = 0;
-		
-		#ifdef COMM_DEBUG
-			USB.println("\n\nSuccessfully joined a coordinator or router!"); 
-			
-			Utils.setLED(LED1, LED_ON);   // If joined, lighten green LED
-			delay(2000);
-			Utils.setLED(LED1, LED_OFF);
-			
+		while( xbeeZB.associationIndication != 0 && (millis()-previous) < 120000)
+		{
+			USB.println("\n\n-----> not associated <----------");
 			printCurrentNetworkParams();
-		#endif
+			
+			delay(6000);
+			
+			xbeeZB.getAssociationIndication();
+			printAssociationState();	
+		}
+		
+		if(!xbeeZB.associationIndication) 
+		{
+			error = 0;
+			
+			xbeeZB.setChannelVerification(0);
+			xbeeZB.writeValues();
+			
+			#ifdef COMM_DEBUG
+				USB.println("\n\nSuccessfully joined a coordinator or router!"); 
+				
+				Utils.setLED(LED1, LED_ON);   // If joined, lighten green LED
+				delay(2000);
+				Utils.setLED(LED1, LED_OFF);
+				
+				printCurrentNetworkParams();
+			#endif
 
+		}
+		else
+		{
+			error = 1;
+			#ifdef COMM_DEBUG
+				USB.println("Failed to join a network!");
+				
+				Utils.setLED(LED0, LED_ON);   // If failed, blink red LED twice fast
+				delay(300);
+				Utils.setLED(LED0, LED_OFF);
+				delay(300);
+				Utils.setLED(LED0, LED_ON);   
+				delay(300);
+				Utils.setLED(LED0, LED_OFF);
+			#endif
+		}
 	}
 	else
 	{
 		error = 1;
 		#ifdef COMM_DEBUG
-			USB.println("Failed to join a network!");
-			
-			Utils.setLED(LED0, LED_ON);   // If failed, blink red LED twice fast
-			delay(200);
-			Utils.setLED(LED0, LED_OFF);
-			Utils.setLED(LED0, LED_ON);   
-			delay(200);
-			Utils.setLED(LED0, LED_OFF);
-		#endif
+			USB.println("getAssociationIndication error");
+		#endif	
 	}
 	
 	return error;
 }
 	
-
-
 
 void CommUtils::printCurrentNetworkParams()
 {
@@ -243,7 +350,43 @@ bool CommUtils::sendMessageLocalWorking(const char * message, const char * desti
       return error;
 } 
 
-
+bool CommUtils::sendMessageLocalWorkingWithType(const char * message, uint8_t type, const char * destination)
+{
+      bool error = false;
+	  
+	  packetXBee * paq_sent;
+      paq_sent=(packetXBee*) calloc(1,sizeof(packetXBee)); 
+      paq_sent->mode=UNICAST;
+      paq_sent->MY_known=0;
+      paq_sent->packetID=type; //IO_DATA;//0x02;
+      paq_sent->opt=0; 
+      xbeeZB.hops=0;
+      xbeeZB.setOriginParams(paq_sent, MY_TYPE);
+      xbeeZB.setDestinationParams(paq_sent, destination, message, MAC_TYPE, DATA_ABSOLUTE);
+      xbeeZB.sendXBee(paq_sent);
+      USB.print("start printing xbeeZB.error_TX:");
+      USB.println(xbeeZB.error_TX);// print xbeeZB.error_TX
+      if( !xbeeZB.error_TX )
+      {
+          //XBee.println("ok");
+          USB.println("End device sends out a challenge ok");
+          Utils.setLED(LED1, LED_ON);   // Ok, blink green LED
+          delay(500);
+          Utils.setLED(LED1, LED_OFF);
+          error = false;
+      }
+      else
+      { 
+          USB.println("challenge transmission error\n\n");
+          Utils.setLED(LED0, LED_ON);   // Error, blink red LED
+          delay(500);
+          Utils.setLED(LED0, LED_OFF);
+          error = true;
+      }
+      free(paq_sent);
+      paq_sent=NULL;
+      return error;
+} 
 
 uint8_t CommUtils::sendMessage(uint8_t * destination, const char * message)
 {
@@ -252,7 +395,7 @@ uint8_t CommUtils::sendMessage(uint8_t * destination, const char * message)
       paq_sent = (packetXBee*) calloc(1,sizeof(packetXBee)); 
       paq_sent->mode=UNICAST;
       paq_sent->MY_known=0;
-      paq_sent->packetID = 0x52;// = ERRORMESSAGE;  //= APPLICATION_ID
+      paq_sent->packetID = 12;// = ERRORMESSAGE;  //= APPLICATION_ID
       paq_sent->opt=0; 
       xbeeZB.hops=0;
 	  
@@ -297,6 +440,8 @@ uint8_t CommUtils::sendMessage(uint8_t * destination, uint8_t type, const char *
 		//USB.println("sendMessage: data in const char * message = "); 
 		//for(int j=0; j<10; j++)
 		//	USB.println( (int) message[j]);
+		USB.print("Message: ");
+		USB.println( message );
 		USB.print("dest = "); USB.println( (int) destination[1] );
 		USB.print("type = "); USB.println( (int) type );	
 	#endif COMM_DEBUG
@@ -308,12 +453,13 @@ uint8_t CommUtils::sendMessage(uint8_t * destination, uint8_t type, const char *
       paq_sent = (packetXBee*) calloc(1,sizeof(packetXBee)); 
       paq_sent->mode=UNICAST;
       paq_sent->MY_known=0;
-      paq_sent->packetID = type;
-	  //paq_sent->packetID = 0x02;
+      paq_sent->packetID = 0x52; //type;
+	  //paq_sent->packetID = 0x52;
       paq_sent->opt=0; 
       xbeeZB.hops=0;
 	  
-      xbeeZB.setOriginParams(paq_sent, "5678", MY_TYPE);
+      //xbeeZB.setOriginParams(paq_sent, "5678", MY_TYPE);
+	  xbeeZB.setOriginParams(paq_sent, MY_TYPE);
       xbeeZB.setDestinationParams(paq_sent, destination, message, MAC_TYPE, DATA_ABSOLUTE);
 	  //xbeeZB.setDestinationParams(paq_sent, "0013A2004069737A", message, MAC_TYPE, DATA_ABSOLUTE);
       xbeeZB.sendXBee(paq_sent);

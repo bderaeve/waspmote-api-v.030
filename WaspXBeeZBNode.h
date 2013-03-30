@@ -49,7 +49,7 @@ class WaspXBeeZBNode : public WaspXBeeZB
 	public:
 		//! class constructor
 		/*!
-		  It does nothing
+		  It saves the standard gateway address and defaultTime2Wake
 		  \param void
 		  \return void
 		 */
@@ -87,9 +87,13 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		
 		
 		
+		uint8_t setNewSleepTime(uint16_t);
 		void convertTime2Wait2Char(uint16_t);
 		
 		
+		//Addressing / Setup
+		uint8_t panid[8]; 
+		uint8_t GATEWAY_MAC[8]; 
 		
 		//Sensor
 		uint16_t physicalSensorMask;
@@ -97,13 +101,10 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		uint16_t activeSensorMask;
 		uint8_t activeSensorMaskLength;
 		
-		//Addressing
-		uint8_t GATEWAY_MAC[8]; 
-		
 		
 		//Deep sleep / Hibernate
-		char * defaultTime2Wake;   //"dd:hh:mm:ss"
-		char time2wake[18];
+		uint16_t defaultTime2Wake;   
+		char time2wake[18];				//"dd:hh:mm:ss"
 		
 		
 		
