@@ -60,21 +60,21 @@ void PacketUtils::getPacketApplicationID(packetXBee * paq)
 
 void PacketUtils::setPacketMask(uint16_t mask)
 {
-	char * str = "TEST";
+	//char * str = "TEST";
 	
 	#ifdef PAQ_DEBUG
-		USB.print("uint16_t packetMask: ");
-		USB.println((int) mask);
-		USB.println(str);
+		//USB.print("uint16_t packetMask: ");
+		//USB.println((int) mask);
+		//USB.println(str);
 	#endif
 	
-	packetData[0] = mask/256;
-	packetData[1] = mask%256;
+	//packetData[0] = mask/256;
+	//packetData[1] = mask%256;
 	
 	#ifdef PAQ_DEBUG
-		USB.print("packetMask!!!!!: ");
-		USB.println( (int) packetData[1]);
-		USB.println( (char * ) packetData );
+		//USB.print("packetMask!!!!!: ");
+		//USB.println( (int) packetData[1]);
+		//USB.println( (char * ) packetData );
 	#endif
 }
 
@@ -164,21 +164,26 @@ void PacketUtils::testComm4(const char * mess, const char * desti)
 void PacketUtils::testComm5(const char * mess, uint8_t type, const char * desti)
 {
 	COMM.sendMessageLocalWorkingWithType(mess, type, desti);
-	
 	//USB.print("TEST");
+}
+
+void PacketUtils::testComm6()
+{
+	char * to = "0013A2004069737A";
+	COMM.sendMessageLocalWorking("TEST MESSAGE", to);
 }
 
 //uint8_t PacketUtils::setSensorData(uint16_t * mask)
 uint8_t PacketUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 {
 	uint8_t error = 2;
-	//uint8_t pos = 2;	// Positions 0 and 1 are reserved for the mask
-	//uint16_t indicator = 1;
-	/*packetData = (char *) calloc(MAX_DATA, sizeof(char));
+	uint8_t pos = 2;	// Positions 0 and 1 are reserved for the mask
+	uint16_t indicator = 1;
+	packetData = (char *) calloc(MAX_DATA, sizeof(char));
 	
 	
 	setPacketMask(mask);	
-	
+	/*
 	for(int i=0; i<16; i++) 
 	{
 		// i:   indicates which sensor is handled
@@ -207,14 +212,16 @@ uint8_t PacketUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 				USB.println( (int) packetData[j]);
 		#endif
 		//COMM.sendMessage(destination, IO_DATA, packetData);
-		COMM.sendMessage(destination, IO_DATA, "TEST MESSAGE 5");
+		//COMM.sendMessage(destination, IO_DATA, "TEST MESSAGE 5");
 	}
 
-	//free(packetData);
-	//packetData = NULL;
+	free(packetData);
+	packetData = NULL;
+	
 	*/
-	const char * mes = "TESTMESSAGE";
-	COMM.sendMessage(destination, 2, mes);
+	
+	//const char * mes = "TESTMESSAGE";
+	//COMM.sendMessage(destination, 2, mes);
 	//USB.println("NEGERS");
 	
 	return error;		

@@ -1,12 +1,13 @@
 
 #ifndef __WPROGRAM_H__
-	//#include "BjornClasses.h"
-	#include "CommUtils.h"
-	#include "WaspXBeeZBNode.h"
+	#include "BjornClasses.h"
+	//#include "CommUtils.h"
+	//#include "WaspXBeeZBNode.h"
 	#include "WaspClasses.h"
 #endif
 
 #include <inttypes.h>
+
 
 uint8_t CommUtils::setupXBee()
 {
@@ -14,6 +15,7 @@ uint8_t CommUtils::setupXBee()
 	xbeeZB.init(ZIGBEE,FREQ2_4G,NORMAL);
 	
 	xbeeZB.ON();
+	xbeeZB.wake();  // Must do this for end devices to work
 	delay(1000);
 
 	// 1.1 Set PANID: 0x00000000000000AA 
@@ -84,6 +86,7 @@ uint8_t CommUtils::setupXBee()
 		xbeeZB.OFF(); 
 		delay(3000); 
 		xbeeZB.ON(); 
+		xbeeZB.wake();  // For end devices: SM = 1!
 		delay(3000); 
 	
 	
@@ -106,13 +109,14 @@ uint8_t CommUtils::setupXBee()
 	return error;
 }
 
+
 uint8_t CommUtils::checkNodeAssociation()
 {
 	uint8_t error = 2;
 	long previous = millis();
 	
-	if(! xbeeZB.getAssociationIndication() )
-	{
+	 xbeeZB.getAssociationIndication();
+	//if(xbeeZB.getAssociationIndication()){
 		while( xbeeZB.associationIndication != 0 && (millis()-previous) < 120000)
 		{
 			USB.println("\n\n-----> not associated <----------");
@@ -157,14 +161,17 @@ uint8_t CommUtils::checkNodeAssociation()
 				Utils.setLED(LED0, LED_OFF);
 			#endif
 		}
-	}
-	else
+	//}
+	/*else
 	{
+	
+		GENERATES AN ERROR ANYWAY, RETURN VALUE IS NOT CORRECT!
+	
 		error = 1;
 		#ifdef COMM_DEBUG
 			USB.println("getAssociationIndication error");
 		#endif	
-	}
+	}*/
 	
 	return error;
 }
@@ -437,7 +444,7 @@ uint8_t CommUtils::sendMessage(uint8_t * destination, const char * message)
 uint8_t CommUtils::sendMessage(uint8_t * destination, uint8_t type, const char * message)
 {
 	#ifdef COMM_DEBUG
-		//USB.println("sendMessage: data in const char * message = "); 
+		USB.println("sendMessage: data in const char * message = "); 
 		//for(int j=0; j<10; j++)
 		//	USB.println( (int) message[j]);
 		USB.print("Message: ");

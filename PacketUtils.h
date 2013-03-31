@@ -223,6 +223,7 @@ class PacketUtils
 		void testComm3(uint8_t * , uint8_t, const char *);
 		void testComm4(const char *, const char *);
 		void testComm5(const char *, uint8_t, const char *);
+		void testComm6();
 		
  
  		//! It enters the nodes sensor values into the packetData data field.

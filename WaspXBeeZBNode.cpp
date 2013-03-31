@@ -12,7 +12,7 @@
 
 
 #ifndef __WPROGRAM_H__
-	#include "WaspXBeeZBNode.h"
+	#include "BjornClasses.h"
 	#include "WaspClasses.h"
 #endif
 

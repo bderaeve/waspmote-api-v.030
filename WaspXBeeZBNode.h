@@ -17,10 +17,7 @@
  * Includes
  ******************************************************************************/
 #include "WaspXBeeZB.h" 
-#include "SensorUtils.h"
  
-class WaspXBeeZB;
-
 
 /******************************************************************************
  * Definitions & Declarations
