@@ -88,7 +88,7 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		void convertTime2Wait2Char(uint16_t);
 		
 		
-		void tester();
+		void testPrinting();
 		
 		
 		//Addressing / Setup

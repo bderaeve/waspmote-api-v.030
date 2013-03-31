@@ -252,9 +252,9 @@ void WaspXBeeZBNode::convertTime2Wait2Char(uint16_t t2w)
 
 
 
-void WaspXBeeZBNode::tester()
+void WaspXBeeZBNode::testPrinting()
 {
-	USB.print("test");
+	USB.print("testXBeeZBNode\n");
 	//PAQ.testeer();
 }
 

@@ -8,9 +8,9 @@
 
 #include <inttypes.h>
 
-void CommUtils::testenPrinten()
+void CommUtils::testPrinting()
 {
-	USB.print("testCommUtils");
+	USB.print("testCommUtils\n");
 }
 
 uint8_t CommUtils::setupXBee()
@@ -285,8 +285,8 @@ uint8_t CommUtils::receiveMessages()
 						#endif  
 						
 						
-						//(*myTreatPacket[xbeeZB.packet_finished[xbeeZB.pos-1]->packetID])
-						//	(xbeeZB.packet_finished[xbeeZB.pos-1]);
+						(*myTreatPacket[xbeeZB.packet_finished[xbeeZB.pos-1]->packetID])
+							(xbeeZB.packet_finished[xbeeZB.pos-1]);
 						
 					
 						#ifdef COMM_DEBUG
@@ -331,7 +331,7 @@ bool CommUtils::sendMessageLocalWorking(const char * message, const char * desti
       paq_sent=(packetXBee*) calloc(1,sizeof(packetXBee)); 
       paq_sent->mode=UNICAST;
       paq_sent->MY_known=0;
-      paq_sent->packetID=IO_DATA;//0x02;
+      paq_sent->packetID=0x02;		// TODO: CHANGE TO error ?
       paq_sent->opt=0; 
       xbeeZB.hops=0;
       xbeeZB.setOriginParams(paq_sent, MY_TYPE);
@@ -449,12 +449,16 @@ uint8_t CommUtils::sendMessage(uint8_t * destination, uint8_t type, const char *
 {
 	#ifdef COMM_DEBUG
 		USB.println("sendMessage: data in const char * message = "); 
-		//for(int j=0; j<10; j++)
-		//	USB.println( (int) message[j]);
+		for(int j=0; j<10; j++)
+			USB.println( (int) message[j]);
 		USB.print("Message: ");
 		USB.println( message );
 		USB.print("dest = "); USB.println( (int) destination[1] );
 		USB.print("type = "); USB.println( (int) type );	
+		
+		char toSend[MAX_DATA];
+		
+		
 	#endif COMM_DEBUG
 	
 		
