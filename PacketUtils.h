@@ -15,18 +15,42 @@
 /******************************************************************************
  * Includes
  ******************************************************************************/
+#include "WaspXBeeZB.h" 
 
+//#include "WaspXBeeCore.h"
+/*
+
+//#include <string.h>
+//#include <stdint.h>
+//#include <stdlib.h>
+#include "WConstants.h"
+#include "WaspXBee.h"
+#include "WaspUSB.h"
+//#include "pins_waspmote.h"
+//#include "Sd2Card.h"
 #include <inttypes.h>
-#include "WaspXBeeCore.h"
 
 #ifndef __WASPXBEECONSTANTS_H__
   #include "WaspXBeeConstants.h"
 #endif
 
+#define DEBUGPRINT
+
+#ifdef DEBUGPRINT
+#define DBG USB.print
+#define DBGLN USB.println
+#else
+#define DBG(...)
+#define DBGLN(...)
+#endif
+*/
+
 /******************************************************************************
  * Definitions & Declarations
  ******************************************************************************/
 #define PAQ_DEBUG
+
+
 
 //typedef enum {ERRORMESSAGE, IO_REQUEST, IO_DATA, CF_REQUEST, CF_RESPONSE, ADD_NODE_REQ, ADD_NODE_RES}
 //	ApplicationIDs;
@@ -166,7 +190,7 @@ typedef uint8_t TreatData( packetXBee *);
 /******************************************************************************
  * Class
  ******************************************************************************/
-class PacketUtils
+class PacketUtils //: public WaspXBeeZB
 {
 	private:
 			
@@ -186,7 +210,7 @@ class PacketUtils
 		  \param void
 		  \return void
 		 */
-		PacketUtils(){};
+		PacketUtils();
 			
 		//InsertData * Inserter[5] = {&InsertTemperature, &InsertHumidity, &InsertPressure,
 		//		&InsertBattery, &InsertCO2};
@@ -224,7 +248,11 @@ class PacketUtils
 		void testComm4(const char *, const char *);
 		void testComm5(const char *, uint8_t, const char *);
 		void testComm6();
-		
+		void testComm7();
+		void testPrinten();
+		/*{
+			USB.print("\ntest\n");
+		}*/
  
  		//! It enters the nodes sensor values into the packetData data field.
 		/*! 

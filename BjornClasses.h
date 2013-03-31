@@ -28,6 +28,8 @@
 #include "WaspXBeeZBNode.h"
 #include "CommUtils.h"
 #include "SensorUtils.h"
+#include "PAQUtils.h"
 #include "PacketUtils.h"
+
 
 #endif

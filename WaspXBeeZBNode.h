@@ -88,6 +88,9 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		void convertTime2Wait2Char(uint16_t);
 		
 		
+		void tester();
+		
+		
 		//Addressing / Setup
 		uint8_t panid[8]; 
 		uint8_t GATEWAY_MAC[8]; 

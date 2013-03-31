@@ -34,6 +34,8 @@ class SensorUtils
 		*/
 		SensorUtils();
 		
+		void testPrint();
+		
 		
 		//! It gets the current SENS_TEMPERATURE value
 		/*!

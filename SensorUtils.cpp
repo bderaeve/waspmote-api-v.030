@@ -1,11 +1,10 @@
 
 #ifndef __WPROGRAM_H__
 	#include "BjornClasses.h"
-	//#include "SensorUtils.h"
 	#include "WaspClasses.h"
 #endif
 
-#include <inttypes.h>
+//#include <inttypes.h>
 
 /*
  * Constructor
@@ -25,6 +24,11 @@ SensorUtils::SensorUtils()
 		measuringInterval[i] = xbeeZB.defaultTime2Wake;
 }
 
+void SensorUtils::testPrint()
+{
+	USB.print("testSensUtils");
+}
+	
 
 
 void SensorUtils::measureTemperature()

@@ -22,14 +22,14 @@
  ******************************************************************************/
 
 #include <inttypes.h>
-#include "PacketUtils.h"
+//#include "PacketUtils.h"
 //#include <avr/eeprom.h>
 
 /******************************************************************************
  * Definitions & Declarations
  ******************************************************************************/
 #define COMM_DEBUG
-extern TreatData * myTreatPacket[];  //Declared in 'PacketUtils.h'
+//extern TreatData * myTreatPacket[];  //Declared in 'PacketUtils.h'
 
 
 /******************************************************************************
@@ -49,6 +49,8 @@ class CommUtils
 		  \return void
 		 */
 		CommUtils(){};
+		
+		void testenPrinten();
 		
 		//other one with panID; nodeID, defaultGateway, etc
 		uint8_t setupXBee();

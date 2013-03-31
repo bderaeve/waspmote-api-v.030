@@ -4,8 +4,15 @@
 	#include "WaspClasses.h"
 #endif
 
-#include <inttypes.h>
+PacketUtils::PacketUtils()
+{
 
+}
+
+void PacketUtils::testPrinten()
+{
+	USB.print("testPacketUtils");
+}
 
 InsertData * Inserter[5] = {&InsertTemperature, &InsertHumidity, &InsertPressure,
 				&InsertBattery, &InsertCO2};		//WORKS
@@ -25,9 +32,9 @@ TreatData * myTreatPacket[13] = {&NotInUse, &Add_Node_Request, &Add_Node_Respons
 
 //typedef void (PacketUtils::*my_pointer_to_function)(uint8_t *, char *); //= NULL;
 
-/*
-PacketUtils::PacketUtils()
-{
+
+
+
 	//pt2Member = &PacketUtils::InsertTemperature;  //WORKING
 	
 	//inserter[0] = &PacketUtils::InsertTemperature;  //WORKING for member funcs
@@ -172,6 +179,18 @@ void PacketUtils::testComm6()
 	char * to = "0013A2004069737A";
 	COMM.sendMessageLocalWorking("TEST MESSAGE", to);
 }
+
+void PacketUtils::testComm7()
+{
+	//const char * adres = "0013A2004069737A";
+	//COMM.sendMessageLocalWorking("TEST MESSAGE", adres);
+	//USB.print("test");
+}
+
+
+
+
+
 
 //uint8_t PacketUtils::setSensorData(uint16_t * mask)
 uint8_t PacketUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)

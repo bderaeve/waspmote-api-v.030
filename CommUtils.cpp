@@ -8,6 +8,10 @@
 
 #include <inttypes.h>
 
+void CommUtils::testenPrinten()
+{
+	USB.print("testCommUtils");
+}
 
 uint8_t CommUtils::setupXBee()
 {
@@ -281,8 +285,8 @@ uint8_t CommUtils::receiveMessages()
 						#endif  
 						
 						
-						(*myTreatPacket[xbeeZB.packet_finished[xbeeZB.pos-1]->packetID])
-							(xbeeZB.packet_finished[xbeeZB.pos-1]);
+						//(*myTreatPacket[xbeeZB.packet_finished[xbeeZB.pos-1]->packetID])
+						//	(xbeeZB.packet_finished[xbeeZB.pos-1]);
 						
 					
 						#ifdef COMM_DEBUG
