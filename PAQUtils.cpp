@@ -30,7 +30,7 @@ void PAQUtils::getPacketApplicationID(packetXBee * paq)
 	applicationID = paq->packetID;
 }
 
-void PAQUtils::setPacketMask(uint16_t a_mask)
+void PAQUtils::setPacketMask(uint16_t mask)
 {
 	#ifdef PACKET_DEBUG
 		// ENABLING THIS LINE(S) LEADS TO TRANSMISSION ERROR = 2!!!!!?????? (ZIE FILMPJE)
@@ -113,15 +113,32 @@ bool PAQUtils::areSameMACAddresses(uint8_t * ad1, uint8_t * ad2)
 }
 
 
+uint8_t PAQUtils::sendMask(uint8_t * destination, uint8_t type, uint16_t mask)
+{
+	uint8_t error = 2;
+	packetSize = 2;
+	
+	setPacketMask(mask);
+	
+	char * content = (char *) calloc(packetSize*2 + 1, sizeof(char));
+	escapeZerosInPacketData(content);
+	
+	error = COMM.sendMessage(destination, type, content);
+	
+	free(content);
+	content = NULL;
+	
+	return error;
+}
 
-//uint8_t PacketUtils::setSensorData(uint16_t * mask)
-/*
+
+//FUNCTION GIVES TX = 2 ERROR BUT WORKS, MESSAGES ARE RECEIVED CORRECTLY 
 uint8_t PAQUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 {
 	uint8_t error = 2;
 	uint8_t pos = 2;	// Positions 0 and 1 are reserved for the mask
+	packetSize = 2;  	// Need 2 bytes for the mask
 	uint16_t indicator = 1;
-	packetData = (char *) calloc(MAX_DATA, sizeof(char));
 	
 	setPacketMask(mask);	
 	
@@ -147,27 +164,49 @@ uint8_t PAQUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 
 	if(error == 0)
 	{
-		#ifdef PACKET_DEBUG
-			//USB.print("packetData in sendMeasuredSensors: ");
-			//USB.println(packetData);
-			//for(int j=0; j<10; j++)
-			//	USB.println( (int) packetData[j]);
-		#endif
-		//COMM.sendMessage(destination, IO_DATA, packetData);
-		//COMM.sendMessage(destination, IO_DATA, "TEST MESSAGE 5");
-	}
+		char * content = (char *) calloc(packetSize*2 + 1, sizeof(char));
 
-	free(packetData);
-	packetData = NULL;
-	
-	//const char * mes = "TESTMESSAGE";
-	//COMM.sendMessage(destination, 2, mes);
-	//USB.println("NEGERS");
-	
+		escapeZerosInPacketData(content);
+		
+		#ifdef PACKET_DEBUG
+			USB.print("strlen "); USB.print(strlen(content));
+			USB.print("\n");
+			
+			for(int j=0; j<packetSize; j++)
+				USB.println( (int) packetData[j]);
+			for(int j=0; j<packetSize*2; j++)
+				USB.println( (int) content[j]);
+				
+			USB.print("packetSize in sendMeasuredSensors: ");
+			USB.println( (int) packetSize);
+			USB.print("packetData in sendMeasuredSensors: ");
+			USB.println(content);
+		#endif
+		
+		COMM.sendMessage(destination, IO_DATA, content);
+		//COMM.sendMessage(destination, IO_DATA, "TEST");
+		
+		free(content);
+		content = NULL;
+	}	
 	return error;		
 }
-*/
-	
+
+void PAQUtils::escapeZerosInPacketData(char * content)
+{
+	uint8_t pos = 0;
+	for(uint8_t i=0; i<packetSize; i++)
+	{
+		if(packetData[i] == 0)
+		{
+			content[pos++] = 0xFF;	// FF = escape char
+			content[pos++] = 0xFE;	// FE = 0
+		}
+		else
+			content[pos++] = packetData[i];	
+	}
+	content[pos] = '\0';
+}	
 
 /*********************************************************************************************************
  *	STATIC FUNCTION POINTERS TO EASILY INSERT THE SENSOR DATA:
@@ -185,6 +224,7 @@ uint8_t PAQUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 		#endif
 		data[(*pos)++] = SensUtils.temp[0];
 		data[(*pos)++] = SensUtils.temp[1];
+		PackUtils.packetSize += 2;
 		
 		return error;
 	}
@@ -195,6 +235,7 @@ uint8_t PAQUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 		
 		error = SensUtils.sensorValue2Chars(SensUtils.humidity, HUMIDITY);
 		data[(*pos)++] = SensUtils.hum;
+		PackUtils.packetSize++;
 		
 		return error;
 	}
@@ -207,6 +248,7 @@ uint8_t PAQUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 		
 		data[(*pos)++] = SensUtils.pres[0];
 		data[(*pos)++] = SensUtils.pres[1];	
+		PackUtils.packetSize += 2;
 		
 		return error;
 	}
@@ -218,6 +260,7 @@ uint8_t PAQUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 		error = SensUtils.sensorValue2Chars(SensUtils.battery, BATTERY);
 		
 		data[(*pos)++] = SensUtils.bat;
+		PackUtils.packetSize++;
 		
 		return error;
 	}
@@ -229,7 +272,8 @@ uint8_t PAQUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 		error = SensUtils.sensorValue2Chars(SensUtils.co2, CO2);
 		
 		data[(*pos)++] = SensUtils.co_2[0];
-		data[(*pos)++] = SensUtils.co_2[1];		
+		data[(*pos)++] = SensUtils.co_2[1];	
+		PackUtils.packetSize += 2;
 		
 		return error;
 	}
@@ -250,7 +294,7 @@ uint8_t PAQUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 		uint8_t error = 2;
 		char aux[MAX_DATA];
 		
-		sprintf(aux, "Node ' %d ' received an invalid packet of type 0: DONT_USE", xbeeZB.nodeID);
+		sprintf(aux, "Node ' %s ' received an invalid packet of type 0: DONT_USE", xbeeZB.nodeID);
 		
 		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, aux);
 		
@@ -262,22 +306,18 @@ uint8_t PAQUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 	{
 		uint8_t error = 2;
 		uint16_t receivedPhysicalMask = 0;
-		PackUtils.packetData = (char *) calloc(2, sizeof(char));
 		
 		// Save the origin address
 		PackUtils.getPacketOriginAddress(receivedPaq);
 	
-		//Do the settings
+		// SET PHYSICAL MASK
 		receivedPhysicalMask =( (unsigned int) receivedPaq->data[0]*256) + receivedPaq->data[1];
 		xbeeZB.setPhysicalSensorMask(&receivedPhysicalMask);
-		//TODO: SET NODE ID
+		//SET NODE ID  (not receiving this atm)
+		//xbeeZB.setNodeIdentifier( itoa(receivedPaq->data[2], xbeeZB.nodeID, 10) );
 		
 		//Send answer back:
-		PackUtils.setPacketMask(xbeeZB.physicalSensorMask);
-		error = COMM.sendMessage(PackUtils.originAddress, ADD_NODE_RES, PackUtils.packetData);
-		
-		free(PackUtils.packetData);
-		PackUtils.packetData = NULL;
+		error = PackUtils.sendMask(PackUtils.originAddress, ADD_NODE_RES, xbeeZB.physicalSensorMask);
 		
 		return error;
 	}

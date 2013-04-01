@@ -54,6 +54,7 @@ class CommUtils
 		
 		//other one with panID; nodeID, defaultGateway, etc
 		uint8_t setupXBee();
+		uint8_t setupXBee(uint8_t[8]);
 		
 		//! It gets and prints the current node association state.
 		/*! If necessary the function will wait for 2 minutes until the XBee module has joined

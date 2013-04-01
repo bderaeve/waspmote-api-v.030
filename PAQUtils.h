@@ -192,7 +192,10 @@ class PAQUtils
 		
 		//for reading in an error message
 		//void readPacketData(packetXBee *);
+		uint8_t sendMask(uint8_t *, uint8_t, uint16_t);
 		uint8_t sendMeasuredSensors(uint8_t *, uint16_t);
+		
+		void escapeZerosInPacketData(char *);
 		
 		bool areSameMACAddresses(uint8_t *, uint8_t *);
 		
@@ -210,7 +213,8 @@ class PAQUtils
 		uint8_t applicationID;
 		uint16_t mask;
 		uint8_t originAddress[8];
-		char * packetData; //[MAX_DATA];
+		uint8_t packetSize;
+		char packetData[MAX_DATA];
 	
 	
  };

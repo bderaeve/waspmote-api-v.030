@@ -114,6 +114,107 @@ uint8_t CommUtils::setupXBee()
 }
 
 
+uint8_t CommUtils::setupXBee(uint8_t pan[8])
+{
+	uint8_t error = 2;
+	xbeeZB.init(ZIGBEE,FREQ2_4G,NORMAL);
+	
+	xbeeZB.ON();
+	xbeeZB.wake();  // Must do this for end devices to work
+	delay(1000);
+
+	// 1.1 Set PANID: 
+		if(!xbeeZB.setPAN(pan))
+		{
+			error = 0;
+			#ifdef COMM_DEBUG
+				USB.println("setPAN ok");
+			#endif
+		}
+		else 
+		{
+			error = 1;
+			#ifdef COMM_DEBUG
+				USB.println("setPAN error");
+			#endif 
+		}
+	// 1.2 set all possible channels to scan, channels from 0x0B to 0x18 (0x19 and 0x1A are excluded)
+		if(!xbeeZB.setScanningChannels(0x3F,0xFF))
+		{
+			error = 0;
+			#ifdef COMM_DEBUG
+				USB.println("setScanningChannels ok");
+			#endif
+		}
+		else 
+		{
+			error = 1;
+			#ifdef COMM_DEBUG
+				USB.println("setScanningChannels error");
+			#endif
+		}
+	// 1.3 It sets the time the Energy Scan will be performed
+		if(!xbeeZB.setDurationEnergyChannels(3)) 
+		{
+			error = 0;
+			#ifdef COMM_DEBUG
+				USB.println("setDurationEnergyChannels ok");
+			#endif
+		}
+		else
+		{
+			error = 1;
+			#ifdef COMM_DEBUG
+				USB.println("setDurationEnergyChannels error");
+			#endif
+		}
+	// 1.4 Set channel verification JV=1 in order to make the XBee module to scan new coordinator
+		if(!xbeeZB.setChannelVerification(1))
+		{
+			error = 0;
+			#ifdef COMM_DEBUG
+				USB.println("setChannelVerification ok");
+			#endif
+		}
+		else
+		{
+			error = 1;
+			#ifdef COMM_DEBUG
+				USB.println("setChannelVerification error");
+			#endif
+		}
+	
+	// 1.5 Write values to XBEE memory	
+		xbeeZB.writeValues();	
+	
+	// 1.6 Reboot the XBee module 
+		xbeeZB.OFF(); 
+		delay(3000); 
+		xbeeZB.ON(); 
+		xbeeZB.wake();  // For end devices: SM = 1!
+		delay(3000); 
+	
+	
+	// 2. WAIT for association:
+		if( !checkNodeAssociation() )
+		{
+			error = 0;
+			#ifdef COMM_DEBUG
+				USB.println("checkNodeAssociation() ok");
+			#endif
+		}
+		else
+		{
+			error = 1;
+			#ifdef COMM_DEBUG
+				USB.println("ERROR CHECKING NODE ASSOCIATION");  
+			#endif
+		}
+	
+	return error;
+}
+
+
 uint8_t CommUtils::checkNodeAssociation()
 {
 	uint8_t error = 2;
@@ -448,27 +549,27 @@ uint8_t CommUtils::sendMessage(uint8_t * destination, const char * message)
 uint8_t CommUtils::sendMessage(uint8_t * destination, uint8_t type, const char * message)
 {
 	#ifdef COMM_DEBUG
+		USB.print("strlen in sendMessage: "); USB.print( strlen(message) );
+		USB.print("\n");
 		USB.println("sendMessage: data in const char * message = "); 
 		for(int j=0; j<10; j++)
 			USB.println( (int) message[j]);
-		USB.print("Message: ");
-		USB.println( message );
+		//USB.print("Message: ");
+		//USB.println( message );
 		USB.print("dest = "); USB.println( (int) destination[1] );
 		USB.print("type = "); USB.println( (int) type );	
 		
-		char toSend[MAX_DATA];
-		
+		USB.print("FREE MEMORY = ");
+		USB.println(freeMemory());
 		
 	#endif COMM_DEBUG
 	
-		
-
       uint8_t error = 2;
 	  packetXBee * paq_sent;
       paq_sent = (packetXBee*) calloc(1,sizeof(packetXBee)); 
       paq_sent->mode=UNICAST;
       paq_sent->MY_known=0;
-      paq_sent->packetID = 0x52; //type;
+      paq_sent->packetID = type;
 	  //paq_sent->packetID = 0x52;
       paq_sent->opt=0; 
       xbeeZB.hops=0;

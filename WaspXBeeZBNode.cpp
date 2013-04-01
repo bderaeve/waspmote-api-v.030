@@ -79,8 +79,7 @@ void WaspXBeeZBNode::setActiveSensorMask(int count, ...)
 {
 	va_list arguments;
 	va_start (arguments, count);
-	//int types;
-	//uint16_t types = 0;
+
 	activeSensorMask = 0;
 	int sum = 0;
 	

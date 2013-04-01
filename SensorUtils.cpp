@@ -244,9 +244,9 @@ uint8_t SensorUtils::sensorValue2Chars(float value, SensorType type)
 			temp[1] = i%256;		// i & 0x00FF;
 			
 			#ifdef SENS_DEBUG
-				//USB.print("i = "); 			USB.println( (int) i );
-				//USB.print("temp[0] = ");	USB.println( (int) temp[0] );
-				//USB.print("temp[1] = ");	USB.println( (int) temp[1] );
+				USB.print("i = "); 			USB.println( (int) i );
+				USB.print("temp[0] = ");	USB.println( (int) temp[0] );
+				USB.print("temp[1] = ");	USB.println( (int) temp[1] );
 			#endif
 			
 			if( i == ( ((unsigned int) temp[0]*256) + temp[1] )  )
