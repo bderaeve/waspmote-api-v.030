@@ -115,6 +115,7 @@ bool PAQUtils::areSameMACAddresses(uint8_t * ad1, uint8_t * ad2)
 
 
 //uint8_t PacketUtils::setSensorData(uint16_t * mask)
+/*
 uint8_t PAQUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 {
 	uint8_t error = 2;
@@ -147,12 +148,12 @@ uint8_t PAQUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 	if(error == 0)
 	{
 		#ifdef PACKET_DEBUG
-			USB.print("packetData in sendMeasuredSensors: ");
-			USB.println(packetData);
-			for(int j=0; j<10; j++)
-				USB.println( (int) packetData[j]);
+			//USB.print("packetData in sendMeasuredSensors: ");
+			//USB.println(packetData);
+			//for(int j=0; j<10; j++)
+			//	USB.println( (int) packetData[j]);
 		#endif
-		COMM.sendMessage(destination, IO_DATA, packetData);
+		//COMM.sendMessage(destination, IO_DATA, packetData);
 		//COMM.sendMessage(destination, IO_DATA, "TEST MESSAGE 5");
 	}
 
@@ -165,7 +166,7 @@ uint8_t PAQUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 	
 	return error;		
 }
-
+*/
 	
 
 /*********************************************************************************************************
