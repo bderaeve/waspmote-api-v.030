@@ -21,7 +21,7 @@ SensorUtils::SensorUtils()
 	reader[7] = &SensorUtils::measurePluvio;
 	
 	for(uint8_t i=0; i<8; i++)
-		measuringInterval[i] = xbeeZB.defaultTime2Wake;
+		measuringInterval[i] = xbeeZB.defaultTime2WakeInt;
 }
 
 void SensorUtils::testPrinting()
@@ -321,6 +321,17 @@ uint8_t SensorUtils::sensorValue2Chars(float value, SensorType type)
 	return error;
 }
 
+
+void SensorUtils::saveSensorMeasuringIntervalTimes()
+{
+	uint16_t i = START_SENSOR_INTERVALS;
+	for(i; i<=NUM_SENSORS*2; i++)
+	{
+		storeValue(i, measuringInterval[i]%256);
+		i++;
+		storeValue(i, measuringInterval[i]/256);
+	}
+}
 
 
 SensorUtils SensUtils = SensorUtils();

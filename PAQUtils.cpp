@@ -305,6 +305,7 @@ void PAQUtils::escapeZerosInPacketData(char * content)
 		receivedPhysicalMask[0] = receivedPaq->data[0];
 		receivedPhysicalMask[1] = receivedPaq->data[1];
 		xbeeZB.setPhysicalSensorMask(receivedPhysicalMask);
+		xbeeZB.setActiveSensorMask(1, BATTERY);
 		//SET NODE ID  (not receiving this atm)
 		//xbeeZB.setNodeIdentifier( itoa(receivedPaq->data[2], xbeeZB.nodeID, 10) );
 		
@@ -367,11 +368,11 @@ void PAQUtils::escapeZerosInPacketData(char * content)
 		
 		
 		receivedTime = ( (unsigned int) receivedPaq->data[0]*256) + receivedPaq->data[1];
-		if( !xbeeZB.setNewSleepTime( receivedTime ) )
+		if( !xbeeZB.setNewDefaultTime2Sleep( receivedTime ) )
 		{
 			//send answer
-			PackUtils.packetData[0] = xbeeZB.defaultTime2Wake/256;
-			PackUtils.packetData[1] = xbeeZB.defaultTime2Wake%256;
+			PackUtils.packetData[0] = xbeeZB.defaultTime2WakeInt/256;
+			PackUtils.packetData[1] = xbeeZB.defaultTime2WakeInt%256;
 			
 			PackUtils.packetSize = 2;  //needed in escapZeros function
 			char * content = (char *) calloc(PackUtils.packetSize*2 + 1, sizeof(char));
@@ -404,8 +405,18 @@ void PAQUtils::escapeZerosInPacketData(char * content)
 	}
 	
 	
-	uint8_t Change_Sensor_Frequency_Request(packetXBee * receivedPaq) {}  // APP_ID = 7
+	uint8_t Change_Sensor_Frequency_Request(packetXBee * receivedPaq)  // APP_ID = 7
+	{
+		uint8_t error = 2;
+		uint8_t receivedToChangeSensorsMask[2]; 
+		
+		// Save the origin address
+		PackUtils.getPacketOriginAddress(receivedPaq);
 	
+		// SET INDIVIDUAL SENSOR TIMES AND NEW ACTIVE MASK
+		xbeeZB.changeSensorFrequencies(receivedPaq->data);
+		
+	}
 	uint8_t Change_Sensor_Frequency_Response(packetXBee * receivedPaq) {}  // APP_ID = 8 - Should never be received	
 	
 	

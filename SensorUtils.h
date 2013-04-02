@@ -15,6 +15,8 @@
 typedef enum {TEMPERATURE = 0x0001, HUMIDITY = 0x0002, PRESSURE = 0x0004, 
 	BATTERY = 0x0008, CO2 = 0x0010, ANEMO = 0x0020, VANE = 0x040, PLUVIO = 0x080} 
 	SensorType;
+	
+#define NUM_SENSORS 8  //MUST BE <=16 FOR EEPROM CONFIGURATION
 
 /******************************************************************************
  * Class
@@ -119,7 +121,11 @@ class SensorUtils
 		uint8_t sensorValue2Chars(float, SensorType);
 		
 		
-
+		//static int compare(const void *x, const void *y); 
+		//static int gcd(int, int);
+		
+		//! It is called when sensors get individual sensor times
+		saveSensorMeasuringIntervalTimes();
 		
 		
 		//! Variable : the averaged temperature value
@@ -179,9 +185,23 @@ class SensorUtils
 		/*!	  --> 2B
 		 */
 		unsigned char co_2[2];		
+		
+		
 
-
+		//!
+		/*! Stores the individual measuring interval times of the sensors
+		 */
 		uint16_t measuringInterval[8];
+		
+		//!
+		/*! Stores the biggest measuring interval time of all the active sensors
+		 */
+		uint16_t maxTime;
+		
+		//!
+		/*! Stores the smallest measuring interval times of all the active sensors
+		 */
+		uint16_t minTime;
 	
  };
  

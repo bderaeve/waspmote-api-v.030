@@ -36,12 +36,12 @@ WaspXBeeZBNode::WaspXBeeZBNode()
 	GATEWAY_MAC[6] = 0x73;
 	GATEWAY_MAC[7] = 0x74;
 	
-	#ifdef NODE_DEBUG
-		defaultTime2Wake = 1;   //"00:00:00:10"
+	#ifdef HIBERNATE_DEBUG
+		defaultTime2WakeInt = 1;   //"00:00:00:10"
 	#else
-		defaultTime2Wake = 90;	//"00:00:15:00";
+		defaultTime2WakeInt = 90;	//"00:00:15:00";
 	#endif
-	convertTime2Wait2Char(defaultTime2Wake);	
+	convertTime2Wait2Char(defaultTime2WakeInt, defaultTime2WakeStr);	
 }
 
 /**************************************************************************************
@@ -59,6 +59,23 @@ void WaspXBeeZBNode::hibernateInterrupt()
     intFlag &= ~(HIB_INT);
 	
 	readEEPROMVariables();
+	
+	RTC.ON();
+    RTC.setMode(RTC_OFF,RTC_NORMAL_MODE); 
+	
+	
+	#ifdef HIBERNATE_DEBUG
+		USB.print("\n\nAWAKE at: "); USB.println(RTC.getTime());
+	#endif
+	
+	
+	
+	
+	// PWR.HIBERNATE DOES NOT ACCEPT LIBELIUM ALARM FUNCTIONS...
+	
+	//USB.print("setAlarm1 30s offset:");
+	//RTC.setAlarm1(0,0,0,50,RTC_OFFSET,RTC_ALM1_MODE2);
+	//USB.println(RTC.getAlarm1());
 }
 
 
@@ -86,7 +103,14 @@ void WaspXBeeZBNode::readEEPROMVariables()
 	physicalSensorMaskLength = Utils.readEEPROM(PHY_MASK_LEN);
 	activeSensorMask = ( (unsigned int) Utils.readEEPROM(ACT_MASK_H) ) * 256
 		+ Utils.readEEPROM(ACT_MASK_L);	
-	activeSensorMaskLength = Utils.readEEPROM(ACT_MASK_LEN);	
+	activeSensorMaskLength = Utils.readEEPROM(ACT_MASK_LEN);
+
+	//SLEEP TIMES
+	defaultTime2WakeInt = ( (unsigned int) Utils.readEEPROM(DEFAULT_T2W_H) ) * 256
+		+ Utils.readEEPROM(DEFAULT_T2W_L);
+		
+	defaultTime2WakeInt++;
+		convertTime2Wait2Char(defaultTime2WakeInt, defaultTime2WakeStr);
 }
 
 
@@ -143,6 +167,17 @@ void WaspXBeeZBNode::setActiveSensorMask(int count, ...)
 }
 
 
+void WaspXBeeZBNode::setActiveSensorMask(uint8_t mask[2])
+{
+	activeSensorMask = ( (unsigned int) mask[0]*256) + mask[1];
+	
+	storeValue(ACT_MASK_H, activeSensorMask/256);	
+	storeValue(ACT_MASK_L, activeSensorMask%256);
+
+	setActiveSensorMaskLength();
+}
+
+
 void WaspXBeeZBNode::setPhysicalSensorMask(uint8_t mask[2])
 {
 	physicalSensorMask = ( (unsigned int) mask[0]*256) + mask[1];
@@ -157,6 +192,8 @@ void WaspXBeeZBNode::setPhysicalSensorMask(uint8_t mask[2])
 
 void WaspXBeeZBNode::setPhysicalSensorMaskLength()
 {
+	physicalSensorMaskLength = getMaskLength(physicalSensorMask);
+/*
 	uint16_t indicator = 32768; // 2^15
 	physicalSensorMaskLength = 16;
 	bool stop = false;
@@ -172,7 +209,7 @@ void WaspXBeeZBNode::setPhysicalSensorMaskLength()
 		i++;
 		indicator >>= 1;
 	}
-	
+*/	
 	storeValue(PHY_MASK_LEN, physicalSensorMaskLength);
 	
 	#ifdef NODE_DEBUG
@@ -184,28 +221,42 @@ void WaspXBeeZBNode::setPhysicalSensorMaskLength()
 
 void WaspXBeeZBNode::setActiveSensorMaskLength()
 {
-	uint16_t indicator = 32768; // 2^15
-	activeSensorMaskLength = 16;
-	bool stop = false;
-	uint8_t i = 0;
-	
-	while( i<16 && !stop)
-	{
-		if(indicator & activeSensorMask)
-			stop = true;
-		else
-			activeSensorMaskLength--;
+	activeSensorMaskLength = getMaskLength(activeSensorMask) ;
 		
-		i++;
-		indicator >>= 1;
-	}
-	
 	storeValue(ACT_MASK_LEN, activeSensorMaskLength);
 	
 	#ifdef NODE_DEBUG
 		USB.print("activeSensorMaskLength = ");
 		USB.println( (int) activeSensorMaskLength);
 	#endif
+}
+
+uint8_t WaspXBeeZBNode::getMaskLength(uint16_t mask)
+{
+	uint16_t indicator = 32768; // 2^15
+	bool stop = false;
+	uint8_t i = 0;
+	uint8_t length = 16;
+	
+	while( i<16 && !stop)
+	{
+		if(indicator & mask)
+			stop = true;
+		else
+			length--;
+		
+		i++;
+		indicator >>= 1;
+	}
+	
+	return length;
+}
+
+
+void WaspXBeeZBNode::disableSensors(uint16_t * toDisableMask)
+{
+	activeSensorMask &= (~(*toDisableMask));
+	setActiveSensorMaskLength;
 }
 
 
@@ -218,18 +269,48 @@ void WaspXBeeZBNode::printSensorMask(uint16_t mask)
 
 /**************************************************************************************
   *
-  * TIMING / SLEEP UTILITIES
+  * TIMING / HIBERNATE UTILITIES
   *
   *************************************************************************************/
-uint8_t WaspXBeeZBNode::setNewSleepTime(uint16_t newTime)
+void WaspXBeeZBNode::hibernate()
+{
+	#ifdef HIBERNATE_DEBUG
+		USB.print("\n\nEntering HIBERNATE at ");
+		USB.println(RTC.getTime());
+		USB.print("for ");
+		USB.println(xbeeZB.defaultTime2WakeStr);
+	#endif
+	
+	if(defaultOperation)
+	{
+		storeValue(DEFAULT_T2W_H, defaultTime2WakeInt/256);	
+		storeValue(DEFAULT_T2W_L, defaultTime2WakeInt%256);
+	}
+	else
+	{
+		//store more
+	}
+	
+	PWR.hibernate(xbeeZB.defaultTime2WakeStr, RTC_OFFSET, RTC_ALM1_MODE2);
+}
+  
+  
+uint8_t WaspXBeeZBNode::setNewDefaultTime2Sleep(uint16_t newTime)
 {
 	uint8_t error = 2;
 	
 	if( newTime > 0)
 	{
 		error = 0;
-		defaultTime2Wake = newTime;
-		convertTime2Wait2Char(newTime);
+		defaultTime2WakeInt = newTime;  //stored in hibernate()
+		convertTime2Wait2Char(newTime, defaultTime2WakeStr);
+		
+		for(uint8_t i=0; i<NUM_SENSORS; i++)
+		{
+			defaultOperation = true;
+			SensUtils.measuringInterval[i] = newTime;
+		}
+		
 	}
 	else
 		error = 1;
@@ -238,7 +319,254 @@ uint8_t WaspXBeeZBNode::setNewSleepTime(uint16_t newTime)
 }
 
 
-void WaspXBeeZBNode::convertTime2Wait2Char(uint16_t t2w)
+uint8_t WaspXBeeZBNode::changeSensorFrequencies(char * array)
+{
+	uint8_t error = 2;
+	uint16_t indicator = 1;
+	uint8_t pos = 3;
+	uint16_t sensorsToDisableMask = 0;
+	uint16_t sensorsToChangeMask = ( (unsigned int) array[0]*256) + array[1];
+	uint8_t maskLength = getMaskLength(sensorsToChangeMask);
+	
+	// i indicates which sensor
+	// pos indicates where the sensor's time is in the array data, starting at 3
+	for(uint8_t i=0; i<maskLength; i++)
+	{
+		if(  indicator & sensorsToChangeMask ) 
+		{
+			error = 0;
+			//calculate new time
+			SensUtils.measuringInterval[i] = ( (unsigned int) array[pos++]*256) + array[pos];
+			pos++;
+			
+			//if 0 disable the sensor in the active sensor mask.
+			if(SensUtils.measuringInterval[i] == 0)
+				sensorsToDisableMask |= indicator;
+				
+			//check if different
+			else if(defaultOperation == true)
+			{
+				if(SensUtils.measuringInterval[i] != defaultTime2WakeInt)
+				{
+					defaultOperation = false;
+				}
+			}
+		}
+		else
+			error = 1;
+		
+		indicator <<= 1;
+	}
+	
+	if( sensorsToDisableMask > 0 )
+		disableSensors(&sensorsToDisableMask);
+	
+	if(! defaultOperation )
+		calculateNextTime2Sleep();
+	
+	return error;
+}
+
+
+/*static*/ int compare(const void *x, const void *y) 
+{
+	return  (*(int*)x - *(int*)y);
+}
+  
+/* Greatest Common Divisor */
+/*static*/ int gcd( int a, int b )
+{
+  if ( a==0 ) return b;
+  return gcd ( b%a, a );
+}
+
+
+
+
+
+
+void WaspXBeeZBNode::calculateNextTime2Sleep()
+{
+	uint16_t max = 0, min = 0, pos = 0;
+	uint8_t factor = 0;
+	uint16_t * sortedTimes = (uint16_t *) calloc(activeSensorMaskLength, sizeof(uint16_t));
+
+	//create a temp array and fill it with the measuring intervals
+	for(uint8_t i=0; i<activeSensorMaskLength; i++)
+	{
+		if(SensUtils.measuringInterval[i] > 0)
+			sortedTimes[i] = SensUtils.measuringInterval[i];
+	}
+	
+	//sort the array:
+	qsort(sortedTimes, activeSensorMaskLength, sizeof(uint16_t), compare);
+	
+
+		
+	//estimate size of wake times array: factor will be used after x sleep cycles to calculate
+	// the next x sleep cycles in case they don't fit within MAX_DATA
+	SensUtils.minTime = sortedTimes[0];
+	SensUtils.maxTime = sortedTimes[activeSensorMaskLength];
+	
+	//after playing with the intervals it can become possible they all have the same time again:
+	if( SensUtils.minTime == SensUtils.maxTime )
+	{
+		setNewDefaultTime2Sleep(SensUtils.minTime);
+		defaultOperation = true;
+	}
+	else
+	{
+		//save the array of individual measuring times and min/max/factor:
+		//need this values to compare with the time of the big array of times. if %= 0 you need to
+		//measure that sensor...
+		SensorUtils.saveSensorMeasuringIntervalTimes();
+		factor = ( (max/min)/MAX_DATA + 1); 
+		
+		storeValue(MIN_SENS_TIME_L, SensUtils.minTime%256);	storeValue(MIN_SENS_TIME_H, SensUtils.minTime/256);
+		storeValue(MAX_SENS_TIME_L, SensUtils.maxTime%256);	storeValue(MAX_SENS_TIME_H, SensUtils.maxTime/256);
+		storeValue(2005, factor);
+	
+	
+	}
+	free(sortedTimes);
+	sortedTimes = NULL;
+}
+
+
+
+	void saveNewTime2SleepArray( )
+	{
+		uint16_t min = ( (unsigned int) array[pos++]*256) + array[pos];
+	
+		time2wValuesArray = (uint16_t *) calloc(MAX_DATA*activeSensorMaskLength, sizeof(uint16_t));
+	
+		//calculate all multiples of the sensor measuring times within the maximum measuring time:
+		for(uint8_t i=1 ; i< MAX_DATA; i++)
+		{
+			for(uint8_t sens=0; i<= activeSensorMaskLength; sens++)
+			{
+				if(sortedTimes[sens] * i * factor <= max)
+					time2wValuesArray[pos] = sortedTimes[sens] * i * factor;
+			}
+		}
+		//store i;
+		
+		//sort to easily delete duplicate values
+		qsort(time2wValuesArray, MAX_DATA*activeSensorMaskLength, sizeof(uint16_t), compare);
+		
+		 //delete duplicate values
+		pos = 0; 
+		for(uint8_t i=1; i<MAX_DATA*activeSensorMaskLength; i++)
+		{
+			if(time2wValuesArray[pos] != time2wValuesArray[i]) 
+				time2wValuesArray[++pos] = time2wValuesArray[i];			
+		}
+		
+		// save these values in EEPROM + save individual sensor times + save 'factor' and 'factor_max'
+		if( ++pos < MAX_EEPROM_WRITE )
+		{
+			pos+=1000;
+			while(pos >= 1000)
+			{
+				storeValue(pos, time2wValuesArray[pos]);
+				pos--;
+			}
+		}
+		else
+		{
+			error = 1;
+			#ifdef HIBERNATE_DEBUG
+				USB.println("size of time2wValues exceeds MAX_EEPROM_WRITE");
+		}
+	}
+	
+	
+	
+	
+	
+	/*
+	if(nrSleepTimes == 1)
+	{
+		void defaultMode();
+	}
+	else
+	{
+		//fill array from the back:
+		{
+			uint8_t nrSleepTimes2 = nrSleepTimes;
+			uint16_t times[nrSleepTimes2];
+			uint8_t pos = NUM_SENSORS;  // = 8: needed values are at the back of array
+			
+			while(nrSleepTimes >= 0)
+				times[--nrSleepTimes2] = timeCopy[--pos];
+		}
+		
+		//fill time arrays:
+		if( times[0] >= 60 && times[nrSleepTimes] <= 360)
+			times[nrSleepTimes] *= 10;  // save EEPROM write cycles via this trick
+		
+		
+		sleepTimes = (uint16 *) calloc( (times[nrSleepTimes]/times[0]), sizeof(uint16_t));
+		for(uint8_t i=0; i<NUM_SENSORS; i++)
+		{
+			timeFlags[i] 
+		
+		}
+		
+	}
+
+
+
+	#ifdef VIA_GCD
+			uint8_t nrSleepTimes = 1;
+			uint16_t timeCopy[activeSensorMaskLength];
+
+			for(uint8_t i=0; i<activeSensorMaskLength; i++)
+			{
+				if(SensUtils.measuringInterval[i] > 0)
+					timeCopy[i] = SensUtils.measuringInterval[i];
+			}
+			
+			#ifdef HIBERNATE_DEBUG
+				timeCopy[0] = 20; timeCopy[1] = 10; timeCopy[2] = 30;
+				timeCopy[3] = 10; timeCopy[4] = timeCopy[5] = timeCopy[6] = timeCopy[7] = 0;
+			#endif
+	
+	
+			//qsort(timeCopy, NUM_SENSORS, sizeof(uint16_t), compare);
+			#ifdef HIBERNATE_DEBUG
+				USB.print("timeCopy[0] = "); USB.println( (int) timeCopy[0] );
+				USB.print("timeCopy[1] = "); USB.println( (int) timeCopy[1] );
+				USB.print("timeCopy[2] = "); USB.println( (int) timeCopy[2] );
+				USB.print("timeCopy[3] = "); USB.println( (int) timeCopy[3] );
+				USB.print("timeCopy[0] = "); USB.println( (int) timeCopy[4] );
+				USB.print("timeCopy[0] = "); USB.println( (int) timeCopy[5] );
+				USB.print("timeCopy[0] = "); USB.println( (int) timeCopy[6] );
+				USB.print("timeCopy[0] = "); USB.println( (int) timeCopy[7] );
+			#endif
+			for(uint8_t i=0; i<NUM_SENSORS-1; i++)
+			{
+				if( timeCopy[i] != timeCopy[i+1] )
+					nrSleepTimes++;
+			}
+			
+			#ifdef HIBERNATE_DEBUG
+				USB.print("nrSleepTimes = "); USB.println( (int) nrSleepTimes );
+			#endif
+	#endif
+	
+
+		
+}
+
+	
+	//if(nrDifferentSleepTimes == 0) // do default operation
+	
+
+}*
+*/
+
+void WaspXBeeZBNode::convertTime2Wait2Char(uint16_t t2w, char * xbeeZBTime2Wake)
 {
 	uint8_t numSecs = 0;
 	uint8_t numMins = 0;
@@ -309,7 +637,7 @@ void WaspXBeeZBNode::convertTime2Wait2Char(uint16_t t2w)
 		}
 	}
 	
-	sprintf(time2wake, "%s:%s:%s:%s", days, hours, mins, secs);	
+	sprintf(xbeeZBTime2Wake, "%s:%s:%s:%s", days, hours, mins, secs);	
 	
 	#ifdef NODE_TIME_DEBUG
 		USB.print("*Days = "); USB.println(days);
@@ -317,9 +645,16 @@ void WaspXBeeZBNode::convertTime2Wait2Char(uint16_t t2w)
 		USB.print("*Minutes = "); USB.println(mins);
 		USB.print("*Seconds = "); USB.println(secs);
 			
-		USB.print("time2wake = "); USB.println(time2wake);  //"dd:hh:mm:ss"
+		USB.print("time2wake = "); USB.println(xbeeZBTime2Wake);  //"dd:hh:mm:ss"
 	#endif
 }
+
+/*
+char * WaspXBeeZBNode::getTime2Wake()
+{
+	return time2wake;
+}
+*/
 
 
 

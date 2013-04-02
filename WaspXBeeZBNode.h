@@ -23,6 +23,7 @@
  * Definitions & Declarations
  ******************************************************************************/
 //#define NODE_DEBUG
+#define HIBERNATE_DEBUG
 //#define NODE_MEMORY_DEBUG
 //#define NODE_TIME_DEBUG
 
@@ -64,6 +65,8 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		
 		void hibernateInterrupt();
 		
+	
+		
 		
 		void setGatewayMacAddress(uint8_t[8]);
 		
@@ -73,6 +76,7 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		 *  \@post:	activeSensorMaskLength will be set
 		 */
 		void setActiveSensorMask(int, ...);
+		
 		
 		//! It allows to remotely set a sensor mask to a node
 		/*! This sensor mask must correspond to the physical layout of the node and is
@@ -86,18 +90,25 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		 *  \@post: activeSensorMaskLength will be set
 		 */
 		void setActiveSensorMask(uint8_t[2]);
-		
+		uint8_t getMaskLength(uint16_t);
 
-	
-	
-		
+		void disableSensors(uint16_t *);
 		void printSensorMask(uint16_t);
 		
 		
 		
-		uint8_t setNewSleepTime(uint16_t);
-		void convertTime2Wait2Char(uint16_t);
+		//! Node will go into hibernate for 'xbeeZB.defaultTime2Wake
+		void hibernate();
 		
+		uint8_t setNewDefaultTime2Sleep(uint16_t);
+		
+		uint8_t changeSensorFrequencies(char *);
+		
+		void convertTime2Wait2Char(uint16_t, char *);
+		
+		void calculateNextTime2Sleep();
+		
+		//static int compare(const void *, const void *) ;
 		
 		void testPrinting();
 		
@@ -123,15 +134,24 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		
 		
 		//Deep sleep / Hibernate
-		uint16_t defaultTime2Wake;   
-		char time2wake[18];				//"dd:hh:mm:ss"
+		uint16_t defaultTime2WakeInt;   
+		char defaultTime2WakeStr[18];				//"dd:hh:mm:ss"
 		
+		// Defines if the node operates in default mode (one time2wake) or if
+		// individual sensors have different sleep time settings.
+		bool defaultOperation;
 		
+		uint8_t nrSleepTimes;
+		uint16_t * sleepTimes;
 		
-		
-		
+		uint16_t * time2wValuesArray;
+		//uint16_t factor;
+		uint16_t hibernateCycleNumber;
+			
 		
 };
+
+//int compare(const void *, const void *);
 
 extern WaspXBeeZBNode	xbeeZB;
 

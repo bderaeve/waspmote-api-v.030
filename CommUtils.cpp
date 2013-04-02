@@ -28,8 +28,12 @@
 uint8_t CommUtils::setupXBee()
 {
 	uint8_t error = 2;
-	xbeeZB.init(ZIGBEE,FREQ2_4G,NORMAL);
 	
+  ///////////////////////////////
+  // A. XBEE
+  ///////////////////////////////
+	
+	xbeeZB.init(ZIGBEE,FREQ2_4G,NORMAL);
 	xbeeZB.ON();
 	xbeeZB.wake();  // Must do this for end devices to work
 	delay(1000);
@@ -121,7 +125,19 @@ uint8_t CommUtils::setupXBee()
 				USB.println("ERROR CHECKING NODE ASSOCIATION");  
 			#endif
 		}
+		
+  ///////////////////////////////
+  // B. RTC
+  ///////////////////////////////
 	
+	// Powers RTC up, init I2C bus and read initial values
+	RTC.ON();	
+	
+	// Saving battery (!!!in combination with Hibernate, RTC may only be used to set
+	// the wake! Other usage can cause internal collisions!!!)
+	RTC.setMode(RTC_OFF,RTC_NORMAL_MODE); 
+		
+		
 	return error;
 }
 
