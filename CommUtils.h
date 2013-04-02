@@ -23,12 +23,13 @@
 
 #include <inttypes.h>
 #include "PAQUtils.h"
-//#include <avr/eeprom.h>
+
 
 /******************************************************************************
  * Definitions & Declarations
  ******************************************************************************/
-#define COMM_DEBUG
+//#define COMM_DEBUG
+#define ASSOCIATION_DEBUG
 extern TreatData * myTreatPacket[];  //Declared in 'PacketUtils.h'
 
 
@@ -50,10 +51,17 @@ class CommUtils
 		 */
 		CommUtils(){};
 		
-		void testPrinting();
+		#ifdef COMM_DEBUG
+			void testPrinting();
+		#endif
+		
+		//! This setup function will initialize the XBEE and program with the default
+		/*! values described for Group T in 2012-2013. See paper DESIGN OF A WIRELESS SENSOR
+		/*	NETWORKING TEST-BED by Bjorn Deraeve and Roel Storms
+		 */
+		uint8_t setupXBee();
 		
 		//other one with panID; nodeID, defaultGateway, etc
-		uint8_t setupXBee();
 		uint8_t setupXBee(uint8_t[8]);
 		
 		//! It gets and prints the current node association state.

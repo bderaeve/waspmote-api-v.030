@@ -24,8 +24,8 @@ WaspXBeeZBNode::WaspXBeeZBNode()
 	panid[3] = 0x00;
 	panid[4] = 0x00;
 	panid[5] = 0x00;
-	panid[6] = 0x00;
-	panid[7] = 0xAA;
+	panid[6] = 0x13;
+	panid[7] = 0x02;
 
 	GATEWAY_MAC[0] = 0x00;
 	GATEWAY_MAC[1] = 0x13;
@@ -44,6 +44,51 @@ WaspXBeeZBNode::WaspXBeeZBNode()
 	convertTime2Wait2Char(defaultTime2Wake);	
 }
 
+/**************************************************************************************
+  *
+  * ARCHITECTURE AND SYSTEM UTILITIES  +  DEFAULT SETTINGS
+  *
+  *************************************************************************************/
+void WaspXBeeZBNode::hibernateInterrupt()
+{
+	#ifdef NODE_DEBUG
+		USB.println("Out of hibernate (in interrupt)");
+		Utils.blinkLEDs(1000);
+		Utils.blinkLEDs(1000);
+	#endif
+    intFlag &= ~(HIB_INT);
+	
+	readEEPROMVariables();
+}
+
+
+uint8_t WaspXBeeZBNode::storeValue(int address, uint8_t value)
+{
+	uint8_t error = 2;
+	
+	if(address > 291)
+	{
+		error = 0;
+		Utils.writeEEPROM(address, value);	
+	}
+	else
+	{	
+		error = 1;
+	}	
+}
+
+
+void WaspXBeeZBNode::readEEPROMVariables()
+{
+	//SENSOR_MASK
+	physicalSensorMask = ( (unsigned int) Utils.readEEPROM(PHY_MASK_H) ) * 256
+		+ Utils.readEEPROM(PHY_MASK_L);
+	physicalSensorMaskLength = Utils.readEEPROM(PHY_MASK_LEN);
+	activeSensorMask = ( (unsigned int) Utils.readEEPROM(ACT_MASK_H) ) * 256
+		+ Utils.readEEPROM(ACT_MASK_L);	
+	activeSensorMaskLength = Utils.readEEPROM(ACT_MASK_LEN);	
+}
+
 
 void WaspXBeeZBNode::setGatewayMacAddress(uint8_t address[8])
 {
@@ -58,23 +103,17 @@ void WaspXBeeZBNode::setGatewayMacAddress(uint8_t address[8])
 }
 
 
-uint8_t WaspXBeeZBNode::setNewSleepTime(uint16_t newTime)
+void WaspXBeeZBNode::testPrinting()
 {
-	uint8_t error = 2;
-	
-	if( newTime > 0)
-	{
-		error = 0;
-		defaultTime2Wake = newTime;
-		convertTime2Wait2Char(newTime);
-	}
-	else
-		error = 1;
-	
-	return error;
+	USB.print("testXBeeZBNode\n");
 }
 
 
+/**************************************************************************************
+  *
+  * NODE LAYOUT / PRESENT SENSORS 
+  *
+  *************************************************************************************/
 void WaspXBeeZBNode::setActiveSensorMask(int count, ...)
 {
 	va_list arguments;
@@ -92,6 +131,9 @@ void WaspXBeeZBNode::setActiveSensorMask(int count, ...)
 		#endif
 	}
 	
+	storeValue(ACT_MASK_H, activeSensorMask/256);	
+	storeValue(ACT_MASK_L, activeSensorMask%256);
+
 	setActiveSensorMaskLength();
 	
 	#ifdef NODE_DEBUG
@@ -101,11 +143,16 @@ void WaspXBeeZBNode::setActiveSensorMask(int count, ...)
 }
 
 
-void WaspXBeeZBNode::setPhysicalSensorMask(uint16_t * mask)
+void WaspXBeeZBNode::setPhysicalSensorMask(uint8_t mask[2])
 {
-	physicalSensorMask = *mask;
+	physicalSensorMask = ( (unsigned int) mask[0]*256) + mask[1];
+		
+	storeValue(PHY_MASK_H, mask[0]);	
+	storeValue(PHY_MASK_L, mask[1]);
+	
 	setPhysicalSensorMaskLength();
 }
+
 
 
 void WaspXBeeZBNode::setPhysicalSensorMaskLength()
@@ -125,6 +172,8 @@ void WaspXBeeZBNode::setPhysicalSensorMaskLength()
 		i++;
 		indicator >>= 1;
 	}
+	
+	storeValue(PHY_MASK_LEN, physicalSensorMaskLength);
 	
 	#ifdef NODE_DEBUG
 		USB.print("physicalSensorMaskLength = ");
@@ -151,6 +200,8 @@ void WaspXBeeZBNode::setActiveSensorMaskLength()
 		indicator >>= 1;
 	}
 	
+	storeValue(ACT_MASK_LEN, activeSensorMaskLength);
+	
 	#ifdef NODE_DEBUG
 		USB.print("activeSensorMaskLength = ");
 		USB.println( (int) activeSensorMaskLength);
@@ -162,6 +213,28 @@ void WaspXBeeZBNode::printSensorMask(uint16_t mask)
 {
 	USB.print("sensorMask = ");
 	USB.println( (int) mask );
+}
+
+
+/**************************************************************************************
+  *
+  * TIMING / SLEEP UTILITIES
+  *
+  *************************************************************************************/
+uint8_t WaspXBeeZBNode::setNewSleepTime(uint16_t newTime)
+{
+	uint8_t error = 2;
+	
+	if( newTime > 0)
+	{
+		error = 0;
+		defaultTime2Wake = newTime;
+		convertTime2Wait2Char(newTime);
+	}
+	else
+		error = 1;
+	
+	return error;
 }
 
 
@@ -251,11 +324,7 @@ void WaspXBeeZBNode::convertTime2Wait2Char(uint16_t t2w)
 
 
 
-void WaspXBeeZBNode::testPrinting()
-{
-	USB.print("testXBeeZBNode\n");
-	//PAQ.testeer();
-}
+
 
 
 

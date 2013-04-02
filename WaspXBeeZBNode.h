@@ -22,7 +22,8 @@
 /******************************************************************************
  * Definitions & Declarations
  ******************************************************************************/
-#define NODE_DEBUG
+//#define NODE_DEBUG
+//#define NODE_MEMORY_DEBUG
 //#define NODE_TIME_DEBUG
 
 /******************************************************************************
@@ -43,6 +44,14 @@
  */
 class WaspXBeeZBNode : public WaspXBeeZB
 {
+	private:
+		//! Stores the length of the nodes physical sensor mask
+		void setPhysicalSensorMaskLength();
+		//! Stores the length of the nodes active sensor mask
+		void setActiveSensorMaskLength();
+		
+		void readEEPROMVariables();
+		
 	public:
 		//! class constructor
 		/*!
@@ -51,6 +60,10 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		  \return void
 		 */
 		WaspXBeeZBNode(); 
+		
+		
+		void hibernateInterrupt();
+		
 		
 		void setGatewayMacAddress(uint8_t[8]);
 		
@@ -66,19 +79,17 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		 *! not supposed to change!
 		 *  \@post: physicalSensorMaskLength will be set
 		 */
-		void setPhysicalSensorMask(uint16_t *);
+		void setPhysicalSensorMask(uint8_t[2]);
 
 		//! It allows to remotely set a sensor mask to a node
 		/*! This sensor mask serves to indicate which installed sensors should be measured
 		 *  \@post: activeSensorMaskLength will be set
 		 */
-		void setActiveSensorMask(uint16_t *);
+		void setActiveSensorMask(uint8_t[2]);
 		
-		//! Stores the length of the nodes physical sensor mask
-		void setPhysicalSensorMaskLength();
+
 	
-		//! Stores the length of the nodes active sensor mask
-		void setActiveSensorMaskLength();	
+	
 		
 		void printSensorMask(uint16_t);
 		
@@ -89,6 +100,15 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		
 		
 		void testPrinting();
+		
+		//Store a value into the EEPROM memory
+		/**
+ *	!!!  EEPROM addresses from 0 to 291 are used by Waspmote to save important 
+ *	!!!  data, so they must not be over-written. Thus, the available storage
+ *	!!!	 addresses go from 292 to 4095. 
+ */
+		uint8_t storeValue(int, uint8_t);
+		
 		
 		
 		//Addressing / Setup

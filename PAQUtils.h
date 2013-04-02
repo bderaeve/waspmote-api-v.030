@@ -21,14 +21,14 @@
 /******************************************************************************
  * Definitions & Declarations
  ******************************************************************************/
-#define PACKET_DEBUG
+//#define PACKET_DEBUG
 
 
 typedef enum {DONT_USE, ADD_NODE_REQ, ADD_NODE_RES, MASK_REQ, MASK_RES, CH_NODE_FREQ_REQ,
 	CH_NODE_FREQ_RES, CH_SENS_FREQ_REQ, CH_SENS_FREQ_RES, IO_REQUEST, IO_DATA,
 	RECEIVE_ERROR, SEND_ERROR}
 	ApplicationIDs;
-	
+
 	
 //! Function pointers for the insertion of sensor data
 /*! Since the size of the data to insert is constant there's no reason to
@@ -183,7 +183,7 @@ class PAQUtils
 		void getPacketMask(packetXBee *);
 		
 		
-		bool maskMatchesNodesActiveSensorMask(uint16_t);
+		bool maskMatchesNodesPhysicalSensorMask(uint16_t);
 		
 		
 		void getPacketOriginAddress(packetXBee *);
@@ -215,8 +215,6 @@ class PAQUtils
 		uint8_t originAddress[8];
 		uint8_t packetSize;
 		char packetData[MAX_DATA];
-	
-	
  };
  
  extern PAQUtils PackUtils;

@@ -1,17 +1,29 @@
-
+/* ==========================================================================
+ *
+ *			THESIS: Design of a Wireless Sensor Networking test-bed
+ * 
+ * ==========================================================================
+ *
+ *       Filename:  CommUtils.cpp
+ *    Description:  Extra functionality for setting up the ZigBee network
+ *					and sending packets.
+ *
+ * ======================================================================= */
+ 
 #ifndef __WPROGRAM_H__
 	#include "BjornClasses.h"
-	//#include "CommUtils.h"
-	//#include "WaspXBeeZBNode.h"
 	#include "WaspClasses.h"
 #endif
 
 #include <inttypes.h>
 
-void CommUtils::testPrinting()
-{
-	USB.print("testCommUtils\n");
-}
+#ifdef COMM_DEBUG
+	void CommUtils::testPrinting()
+	{
+		
+		USB.print("testCommUtils\n");
+	}
+#endif
 
 uint8_t CommUtils::setupXBee()
 {
@@ -22,7 +34,7 @@ uint8_t CommUtils::setupXBee()
 	xbeeZB.wake();  // Must do this for end devices to work
 	delay(1000);
 
-	// 1.1 Set PANID: 0x00000000000000AA 
+	// 1.1 Set PANID: 0x0000000000001302 
 		if(!xbeeZB.setPAN(xbeeZB.panid))
 		{
 			error = 0;
@@ -224,13 +236,24 @@ uint8_t CommUtils::checkNodeAssociation()
 	//if(xbeeZB.getAssociationIndication()){
 		while( xbeeZB.associationIndication != 0 && (millis()-previous) < 120000)
 		{
-			USB.println("\n\n-----> not associated <----------");
-			printCurrentNetworkParams();
+			#ifdef ASSOCIATION_DEBUG
+				USB.println("\n\n-----> not associated <----------");
+				printCurrentNetworkParams();
+				Utils.setLED(LED0, LED_ON);  
+				delay(300);
+				Utils.setLED(LED0, LED_OFF);
+				delay(300);
+				Utils.setLED(LED0, LED_ON);   
+				delay(300);
+				Utils.setLED(LED0, LED_OFF);
+			#endif
 			
 			delay(6000);
-			
 			xbeeZB.getAssociationIndication();
-			printAssociationState();	
+			
+			#ifdef ASSOCIATION_DEBUG
+				printAssociationState();	
+			#endif
 		}
 		
 		if(!xbeeZB.associationIndication) 
@@ -240,7 +263,7 @@ uint8_t CommUtils::checkNodeAssociation()
 			xbeeZB.setChannelVerification(0);
 			xbeeZB.writeValues();
 			
-			#ifdef COMM_DEBUG
+			#ifdef ASSOCIATION_DEBUG
 				USB.println("\n\nSuccessfully joined a coordinator or router!"); 
 				
 				Utils.setLED(LED1, LED_ON);   // If joined, lighten green LED
@@ -249,12 +272,11 @@ uint8_t CommUtils::checkNodeAssociation()
 				
 				printCurrentNetworkParams();
 			#endif
-
 		}
 		else
 		{
 			error = 1;
-			#ifdef COMM_DEBUG
+			#ifdef ASSOCIATION_DEBUG
 				USB.println("Failed to join a network!");
 				
 				Utils.setLED(LED0, LED_ON);   // If failed, blink red LED twice fast
@@ -507,7 +529,7 @@ uint8_t CommUtils::sendMessage(uint8_t * destination, const char * message)
       paq_sent = (packetXBee*) calloc(1,sizeof(packetXBee)); 
       paq_sent->mode=UNICAST;
       paq_sent->MY_known=0;
-      paq_sent->packetID = 12;// = ERRORMESSAGE;  //= APPLICATION_ID
+      paq_sent->packetID = SEND_ERROR;  //APPLICATION_ID = 12
       paq_sent->opt=0; 
       xbeeZB.hops=0;
 	  
@@ -554,19 +576,18 @@ uint8_t CommUtils::sendMessage(uint8_t * destination, uint8_t type, const char *
 		USB.println("sendMessage: data in const char * message = "); 
 		for(int j=0; j<10; j++)
 			USB.println( (int) message[j]);
-		//USB.print("Message: ");
-		//USB.println( message );
 		USB.print("dest = "); USB.println( (int) destination[1] );
 		USB.print("type = "); USB.println( (int) type );	
-		
-		USB.print("FREE MEMORY = ");
-		USB.println(freeMemory());
-		
 	#endif COMM_DEBUG
 	
       uint8_t error = 2;
 	  packetXBee * paq_sent;
       paq_sent = (packetXBee*) calloc(1,sizeof(packetXBee)); 
+	  
+	  #ifdef NODE_MEMORY_DEBUG
+			USB.print("FREE MEMORY = "); USB.println(freeMemory());
+	  #endif
+	  
       paq_sent->mode=UNICAST;
       paq_sent->MY_known=0;
       paq_sent->packetID = type;
@@ -581,7 +602,7 @@ uint8_t CommUtils::sendMessage(uint8_t * destination, uint8_t type, const char *
       xbeeZB.sendXBee(paq_sent);
 	 
 	  #ifdef COMM_DEBUG
-	 delay(500);	  USB.print("start printing xbeeZB.error_TX:");
+	 	  USB.print("start printing xbeeZB.error_TX:");
 		  USB.println(xbeeZB.error_TX);
 	  #endif
       if( !xbeeZB.error_TX )
