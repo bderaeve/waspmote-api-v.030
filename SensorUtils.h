@@ -123,9 +123,10 @@ class SensorUtils
 		
 		//static int compare(const void *x, const void *y); 
 		//static int gcd(int, int);
+	
 		
 		//! It is called when sensors get individual sensor times
-		saveSensorMeasuringIntervalTimes();
+		void saveSensorMeasuringIntervalTimes();
 		
 		
 		//! Variable : the averaged temperature value
@@ -186,7 +187,7 @@ class SensorUtils
 		 */
 		unsigned char co_2[2];		
 		
-		
+	
 
 		//!
 		/*! Stores the individual measuring interval times of the sensors

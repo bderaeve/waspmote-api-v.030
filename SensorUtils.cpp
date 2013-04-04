@@ -324,12 +324,27 @@ uint8_t SensorUtils::sensorValue2Chars(float value, SensorType type)
 
 void SensorUtils::saveSensorMeasuringIntervalTimes()
 {
-	uint16_t i = START_SENSOR_INTERVALS;
-	for(i; i<=NUM_SENSORS*2; i++)
+	uint16_t indicator = 1;
+	uint16_t pos_eeprom = START_SENSOR_INTERVALS;
+	uint8_t which_sensor = 0;
+	
+	for(pos_eeprom; pos_eeprom<=END_SENSOR_INTERVALS; pos_eeprom++)
 	{
-		storeValue(i, measuringInterval[i]%256);
-		i++;
-		storeValue(i, measuringInterval[i]/256);
+		if(indicator & xbeeZB.activeSensorMask)
+		{
+			//'EEPROM' => only overwrite necessary values
+			xbeeZB.storeValue(pos_eeprom, measuringInterval[which_sensor]%256);
+			pos_eeprom++;
+			xbeeZB.storeValue(pos_eeprom, measuringInterval[which_sensor]/256);
+			pos_eeprom++;
+		}
+		else
+		{
+			pos_eeprom++;  //2nd ++ via for
+		}
+		
+		which_sensor++;
+		indicator <<= 1;
 	}
 }
 

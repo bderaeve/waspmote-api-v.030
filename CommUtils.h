@@ -29,8 +29,11 @@
  * Definitions & Declarations
  ******************************************************************************/
 //#define COMM_DEBUG
-#define ASSOCIATION_DEBUG
+//#define ASSOCIATION_DEBUG
 extern TreatData * myTreatPacket[];  //Declared in 'PacketUtils.h'
+
+typedef enum {SETUP, LOOP} 
+	AssociationMode;
 
 
 /******************************************************************************
@@ -71,7 +74,7 @@ class CommUtils
 					error=1 --> There has been an error while executing the command
 					error=0 --> The command has been executed with no errors
 		*/ 
-		uint8_t checkNodeAssociation();
+		uint8_t checkNodeAssociation(AssociationMode);
 		
 		
 		//! It prints the current association state stored in xbeeZB.associationIndication

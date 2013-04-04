@@ -22,10 +22,14 @@
 /******************************************************************************
  * Definitions & Declarations
  ******************************************************************************/
-//#define NODE_DEBUG
+#define NODE_DEBUG
 #define HIBERNATE_DEBUG
+#define MATH_DEBUG
 //#define NODE_MEMORY_DEBUG
 //#define NODE_TIME_DEBUG
+
+#define EASY 0
+#define DIFFICULT 1
 
 /******************************************************************************
  * Class
@@ -91,25 +95,35 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		 */
 		void setActiveSensorMask(uint8_t[2]);
 		uint8_t getMaskLength(uint16_t);
+		uint8_t getNrActiveSensors(uint16_t);
 
-		void disableSensors(uint16_t *);
+		uint8_t disableSensors(uint16_t *);
 		void printSensorMask(uint16_t);
 		
 		
 		
-		//! Node will go into hibernate for 'xbeeZB.defaultTime2Wake
+		//! Node will go into hibernate for 'xbeeZB.defaultTime2Wake'
 		void hibernate();
 		
 		uint8_t setNewDefaultTime2Sleep(uint16_t);
 		
+		
+///CHANGE SENSOR FREQUENCIES
+		
 		uint8_t changeSensorFrequencies(char *);
 		
+		uint8_t setNewDifferentSleepTimes();
+		
+		void createAndSaveNewTime2SleepArray(int, uint16_t *);
+		
+		uint16_t calculateMaxNrElementsForEEPROMArray(uint16_t *);
+		
 		void convertTime2Wait2Char(uint16_t, char *);
-		
-		void calculateNextTime2Sleep();
-		
-		//static int compare(const void *, const void *) ;
-		
+	/*	
+		static int compare(const void *, const void *);
+		static int gcd(int, int);
+		static int lcm(int, int);
+	*/	
 		void testPrinting();
 		
 		//Store a value into the EEPROM memory
@@ -119,6 +133,9 @@ class WaspXBeeZBNode : public WaspXBeeZB
  *	!!!	 addresses go from 292 to 4095. 
  */
 		uint8_t storeValue(int, uint8_t);
+		
+		
+		
 		
 		
 		
@@ -132,10 +149,15 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		uint16_t activeSensorMask;
 		uint8_t activeSensorMaskLength;
 		
+				//!
+		/*! Stores how much of the nodes sensors are activated
+		 */	
+		uint8_t nrActivatedSensors;
+		
 		
 		//Deep sleep / Hibernate
 		uint16_t defaultTime2WakeInt;   
-		char defaultTime2WakeStr[18];				//"dd:hh:mm:ss"
+		char defaultTime2WakeStr[18];		//"dd:hh:mm:ss"
 		
 		// Defines if the node operates in default mode (one time2wake) or if
 		// individual sensors have different sleep time settings.
@@ -144,14 +166,21 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		uint8_t nrSleepTimes;
 		uint16_t * sleepTimes;
 		
-		uint16_t * time2wValuesArray;
+		//uint16_t * time2wValuesArray;
 		//uint16_t factor;
 		uint16_t hibernateCycleNumber;
 			
 		
 };
 
-//int compare(const void *, const void *);
+
+//! The following functions should not be accessible from the libelium IDE 
+//! so they can be static:
+
+int compare(const void *, const void *);
+int gcd(int, int);
+uint16_t lcm(uint16_t, uint16_t);
+
 
 extern WaspXBeeZBNode	xbeeZB;
 

@@ -408,18 +408,35 @@ void PAQUtils::escapeZerosInPacketData(char * content)
 	uint8_t Change_Sensor_Frequency_Request(packetXBee * receivedPaq)  // APP_ID = 7
 	{
 		uint8_t error = 2;
-		uint8_t receivedToChangeSensorsMask[2]; 
+		uint16_t receivedToChangeSensorsMask = ( (unsigned int) receivedPaq->data[0]*256) + receivedPaq->data[1];
 		
 		// Save the origin address
 		PackUtils.getPacketOriginAddress(receivedPaq);
 	
 		// SET INDIVIDUAL SENSOR TIMES AND NEW ACTIVE MASK
-		xbeeZB.changeSensorFrequencies(receivedPaq->data);
+		error = xbeeZB.changeSensorFrequencies(receivedPaq->data);
 		
+		if(error)
+		{	
+			memset(PackUtils.packetData, 0, MAX_DATA);
+			sprintf(PackUtils.packetData, "Node ' %s ' had an error in xbeeZB::changeSensorFrequencies ");
+		}
+		else
+		{
+			PackUtils.sendMask(PackUtils.originAddress, CH_SENS_FREQ_RES, receivedToChangeSensorsMask);
+		}
 	}
-	uint8_t Change_Sensor_Frequency_Response(packetXBee * receivedPaq) {}  // APP_ID = 8 - Should never be received	
-	
-	
+	uint8_t Change_Sensor_Frequency_Response(packetXBee * receivedPaq)  // APP_ID = 8 - Should never be received	
+	{
+		uint8_t error = 2;
+		
+		memset(PackUtils.packetData, 0, MAX_DATA);
+		sprintf(PackUtils.packetData, "Node ' %s ' %s%d", xbeeZB.nodeID, "received an invalid packet of type ",8);
+		
+		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, PackUtils.packetData);
+		
+		return error;	
+	}
 	
 	
 	uint8_t IO_Request(packetXBee * receivedPaq)
