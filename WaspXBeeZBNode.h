@@ -22,20 +22,25 @@
 /******************************************************************************
  * Definitions & Declarations
  ******************************************************************************/
-#define NODE_DEBUG
-#define HIBERNATE_DEBUG
-#define MATH_DEBUG
+//#define NODE_DEBUG
+#define HIBERNATE_DEBUG_V2
+//#define MATH_DEBUG
 //#define NODE_MEMORY_DEBUG
 //#define NODE_TIME_DEBUG
 
-#define EASY 0
+//! Determines if all the different sleep times could be calculated and stored
+/*! or wether the reserved memory is too small and the next values should be 
+/*  calculated once the previous ones may be overwritten.
+ */
+#define EASY 0		/// Stored in EEPROM_READ_MODE
 #define DIFFICULT 1
+
+
 
 /******************************************************************************
  * Class
  ******************************************************************************/
  
-
 //! WaspXBeeZBNode Class
 /*!
 	WaspXBeeZBNode Class inherits from 'WaspXBeeZB' which defines the necessary
@@ -114,11 +119,11 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		
 		uint8_t setNewDifferentSleepTimes();
 		
-		void createAndSaveNewTime2SleepArray(int, uint16_t *);
+		void createAndSaveNewTime2SleepArray(uint16_t *);
 		
 		uint16_t calculateMaxNrElementsForEEPROMArray(uint16_t *);
 		
-		void convertTime2Wait2Char(uint16_t, char *);
+		
 	/*	
 		static int compare(const void *, const void *);
 		static int gcd(int, int);
@@ -135,13 +140,14 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		uint8_t storeValue(int, uint8_t);
 		
 		
-		
+
 		
 		
 		
 		//Addressing / Setup
 		uint8_t panid[8]; 
 		uint8_t GATEWAY_MAC[8]; 
+		uint8_t nrOfPanics;
 		
 		//Sensor
 		uint16_t physicalSensorMask;
@@ -149,7 +155,7 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		uint16_t activeSensorMask;
 		uint8_t activeSensorMaskLength;
 		
-				//!
+		//!
 		/*! Stores how much of the nodes sensors are activated
 		 */	
 		uint8_t nrActivatedSensors;
@@ -158,6 +164,8 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		//Deep sleep / Hibernate
 		uint16_t defaultTime2WakeInt;   
 		char defaultTime2WakeStr[18];		//"dd:hh:mm:ss"
+		
+
 		
 		// Defines if the node operates in default mode (one time2wake) or if
 		// individual sensors have different sleep time settings.

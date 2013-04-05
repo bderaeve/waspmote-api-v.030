@@ -30,6 +30,7 @@
 #include "SensorUtils.h"
 #include "PAQUtils.h"
 #include "EEPROMUtils.h"
+#include "RTCUtils.h"
 
 
 #endif

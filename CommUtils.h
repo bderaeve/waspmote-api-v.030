@@ -70,8 +70,8 @@ class CommUtils
 		//! It gets and prints the current node association state.
 		/*! If necessary the function will wait for 2 minutes until the XBee module has joined
 		/*!	a network.
-		  \return  	error=2 --> The command has not been executed
-					error=1 --> There has been an error while executing the command
+		  \return  	error=2 --> XBee not detected on Waspmote
+					error=1 --> No joinable networks found, try doing setupXBee() and check those results
 					error=0 --> The command has been executed with no errors
 		*/ 
 		uint8_t checkNodeAssociation(AssociationMode);

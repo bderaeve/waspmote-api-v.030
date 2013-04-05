@@ -107,7 +107,7 @@ uint8_t CommUtils::setupXBee()
 		delay(3000); 
 		xbeeZB.ON(); 
 		xbeeZB.wake();  // For end devices: SM = 1!
-		delay(3000); 
+		//delay(3000); 
 	
 	
 	// 2. WAIT for association:
@@ -135,7 +135,7 @@ uint8_t CommUtils::setupXBee()
 	
 	// Saving battery (!!!in combination with Hibernate, RTC may only be used to set
 	// the wake! Other usage can cause internal collisions!!!)
-	RTC.setMode(RTC_OFF,RTC_NORMAL_MODE); 
+	//RTC.setMode(RTC_OFF,RTC_NORMAL_MODE); 
 		
 		
 	return error;
@@ -220,7 +220,7 @@ uint8_t CommUtils::setupXBee(uint8_t pan[8])
 		delay(3000); 
 		xbeeZB.ON(); 
 		xbeeZB.wake();  // For end devices: SM = 1!
-		delay(3000); 
+		//delay(3000); 
 	
 	
 	// 2. WAIT for association:
@@ -238,6 +238,17 @@ uint8_t CommUtils::setupXBee(uint8_t pan[8])
 				USB.println("ERROR CHECKING NODE ASSOCIATION");  
 			#endif
 		}
+		
+  ///////////////////////////////
+  // B. RTC
+  ///////////////////////////////
+	
+	// Powers RTC up, init I2C bus and read initial values
+	RTC.ON();	
+	
+	// Saving battery (!!!in combination with Hibernate, RTC may only be used to set
+	// the wake! Other usage can cause internal collisions!!!)
+	//RTC.setMode(RTC_OFF,RTC_NORMAL_MODE); 
 	
 	return error;
 }
@@ -248,82 +259,9 @@ uint8_t CommUtils::checkNodeAssociation(AssociationMode mode)
 	uint8_t error = 2;
 	long previous = millis();
 	
-	if(mode == SETUP)
-	{	
-		 xbeeZB.getAssociationIndication();
-		//if(xbeeZB.getAssociationIndication()){
-			while( xbeeZB.associationIndication != 0 && (millis()-previous) < 12000)
-			{
-				#ifdef ASSOCIATION_DEBUG
-					USB.println("\n\n-----> not associated <----------");
-					printCurrentNetworkParams();
-					Utils.setLED(LED0, LED_ON);  
-					delay(300);
-					Utils.setLED(LED0, LED_OFF);
-					delay(300);
-					Utils.setLED(LED0, LED_ON);   
-					delay(300);
-					Utils.setLED(LED0, LED_OFF);
-				#endif
-				
-				delay(6000);
-				xbeeZB.getAssociationIndication();
-				
-				#ifdef ASSOCIATION_DEBUG
-					printAssociationState();	
-				#endif
-			}
-			
-			if(!xbeeZB.associationIndication) 
-			{
-				error = 0;
-				
-				xbeeZB.setChannelVerification(0);
-				xbeeZB.writeValues();
-				
-				#ifdef ASSOCIATION_DEBUG
-					USB.println("\n\nSuccessfully joined a coordinator or router!"); 
-					
-					Utils.setLED(LED1, LED_ON);   // If joined, lighten green LED
-					delay(2000);
-					Utils.setLED(LED1, LED_OFF);
-					
-					printCurrentNetworkParams();
-				#endif
-			}
-			else
-			{
-				error = 1;
-				#ifdef ASSOCIATION_DEBUG
-					USB.println("Failed to join a network!");
-					
-					Utils.setLED(LED0, LED_ON);   // If failed, blink red LED twice fast
-					delay(300);
-					Utils.setLED(LED0, LED_OFF);
-					delay(300);
-					Utils.setLED(LED0, LED_ON);   
-					delay(300);
-					Utils.setLED(LED0, LED_OFF);
-				#endif
-			}
-		//}
-		/*else
-		{
-		
-			GENERATES AN ERROR ANYWAY, RETURN VALUE IS NOT CORRECT!
-		
-			error = 1;
-			#ifdef COMM_DEBUG
-				USB.println("getAssociationIndication error");
-			#endif	
-		}*/
-	
-	}
-	else if(mode == LOOP)  
-	{
-		xbeeZB.getAssociationIndication();
-		
-		while( xbeeZB.associationIndication != 0 )
+	 xbeeZB.getAssociationIndication();
+	//if(xbeeZB.getAssociationIndication()){
+		while( xbeeZB.associationIndication != 0 && (millis()-previous) < 20000)
 		{
 			#ifdef ASSOCIATION_DEBUG
 				USB.println("\n\n-----> not associated <----------");
@@ -337,30 +275,45 @@ uint8_t CommUtils::checkNodeAssociation(AssociationMode mode)
 				Utils.setLED(LED0, LED_OFF);
 			#endif
 			
+			//delay(6000);
 			xbeeZB.getAssociationIndication();
 			
-			#ifdef ASSOCIATION_DEBUG
+			//#ifdef ASSOCIATION_DEBUG
 				printAssociationState();	
-			#endif
+			//#endif
 		}
+		
+		printCurrentNetworkParams();
 		
 		if(!xbeeZB.associationIndication) 
 		{
-			error = 0;
-							
-			#ifdef ASSOCIATION_DEBUG
-				USB.println("\n\nSuccessfully joined a coordinator or router!"); 
+			xbeeZB.getExtendedPAN();
+			if( xbeeZB.extendedPAN[7] == 0 )
+			{
+				error = 1;
+				USB.println("\nNo XBee detected on Waspmote");
+			}
+			else
+			{
+				error =0;
+			
+				xbeeZB.setChannelVerification(0);
+				xbeeZB.writeValues();
 				
-				Utils.setLED(LED1, LED_ON);   // If joined, lighten green LED
-				delay(2000);
-				Utils.setLED(LED1, LED_OFF);
-				
-				printCurrentNetworkParams();
-			#endif
+				#ifdef ASSOCIATION_DEBUG
+					USB.println("\n\nSuccessfully joined a coordinator or router!"); 
+					
+					Utils.setLED(LED1, LED_ON);   // If joined, lighten green LED
+					delay(2000);
+					Utils.setLED(LED1, LED_OFF);
+					
+					printCurrentNetworkParams();
+				#endif
+			}
 		}
 		else
 		{
-			error = 1;
+			error = 2;
 			#ifdef ASSOCIATION_DEBUG
 				USB.println("Failed to join a network!");
 				
@@ -372,11 +325,20 @@ uint8_t CommUtils::checkNodeAssociation(AssociationMode mode)
 				delay(300);
 				Utils.setLED(LED0, LED_OFF);
 			#endif
-		}	
-	
-	}
-	
+		}
+		
 	return error;
+	//}
+	/*else
+	{
+	
+		GENERATES AN ERROR ANYWAY, RETURN VALUE IS NOT CORRECT!
+	
+		error = 1;
+		#ifdef COMM_DEBUG
+			USB.println("getAssociationIndication error");
+		#endif	
+	}*/
 }
 	
 
