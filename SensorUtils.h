@@ -16,6 +16,21 @@ typedef enum {TEMPERATURE = 0x0001, HUMIDITY = 0x0002, PRESSURE = 0x0004,
 	BATTERY = 0x0008, CO2 = 0x0010, ANEMO = 0x0020, VANE = 0x040, PLUVIO = 0x080} 
 	SensorType;
 	
+#define NUM_MEASUREMENTS 3
+
+//! Function pointers to save sensor data
+/*! Since the size of the data to insert is constant there's no reason to
+/*! make these functions non-static / member functions.
+ *	\return	error=SensorType --> EEPROM FULL, request to send the values
+ *			error=0	--> The command has been executed with no errors
+ */	
+typedef uint16_t StoreSensorData();
+	extern uint16_t saveTemperature();
+	extern uint16_t saveHumidity();
+	extern uint16_t savePressure();
+	extern uint16_t saveBattery();
+	extern uint16_t saveCO2();
+	
 #define NUM_SENSORS 8  //MUST BE <=16 FOR EEPROM CONFIGURATION
 
 /******************************************************************************
@@ -129,6 +144,16 @@ class SensorUtils
 		void saveSensorMeasuringIntervalTimes();
 		
 		
+		//! Measures and stores all sensors found in the mask argument
+		/*!!!!! This function takes care of all turning ON/OFF board and sensor requirements !!!!!
+		  \return  	error=3 --> EEPROM FULL, values must be sent
+					error=2 --> The command has not been executed
+					error=1 --> The MASK was 0, no sensors measured
+					error=0 --> The command has been executed with no errors
+		*/		
+		uint8_t measureAndstoreSensorValues(uint16_t);
+		
+		
 		//! Variable : the averaged temperature value
 		/*!
 		 */
@@ -203,6 +228,9 @@ class SensorUtils
 		/*! Stores the smallest measuring interval times of all the active sensors
 		 */
 		uint16_t minTime;
+		
+		
+		long previous;
 	
  };
  

@@ -34,7 +34,8 @@
 /******************************************************************************
  * Definitions & Declarations
  ******************************************************************************/
-#define RTC_UTILS_DEBUG_V2
+//#define RTC_UTILS_DEBUG_V2
+
 #define ONE_DAY 8640
 
 
@@ -61,6 +62,8 @@ class RTCUtils
 		  \return void
 		 */
 		RTCUtils(){};
+		
+		void reinitialize();
 		
 		
 		//! It gets from the RTC the date and time, storing them in the corresponding variables
@@ -102,9 +105,10 @@ class RTCUtils
 		
 	
 		//!
-		/*! Stores the RTC value as uint16_t as long as its < 65536
+		/*! Stores the RTC sec, min, hour value as uint16_t as long as its < 65536
 		 */	
-		uint16_t RTCint;
+		uint16_t RTCSecMinHourInt;
+		
 		
 		//!
 		/*! Stores the Alarm1 value as uint16_t as long as its < 65536

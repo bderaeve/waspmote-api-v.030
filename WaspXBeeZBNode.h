@@ -13,20 +13,23 @@
 #ifndef WASPXBEEZBNODE_H
 #define WASPXBEEZBNODE_H
 
+	
 /******************************************************************************
  * Includes
  ******************************************************************************/
 #include "WaspXBeeZB.h" 
- 
 
+ 
 /******************************************************************************
  * Definitions & Declarations
  ******************************************************************************/
 //#define NODE_DEBUG
-#define HIBERNATE_DEBUG_V2
+//#define HIBERNATE_DEBUG
+//#define HIBERNATE_DEBUG_V2
 //#define MATH_DEBUG
 //#define NODE_MEMORY_DEBUG
 //#define NODE_TIME_DEBUG
+//#define POWER_SAVER_DEBUG
 
 //! Determines if all the different sleep times could be calculated and stored
 /*! or wether the reserved memory is too small and the next values should be 
@@ -34,6 +37,9 @@
  */
 #define EASY 0		/// Stored in EEPROM_READ_MODE
 #define DIFFICULT 1
+
+typedef enum {HIGHPERFORMANCE, POWERSAVER} 
+	PowerPlan; 
 
 
 
@@ -60,7 +66,7 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		//! Stores the length of the nodes active sensor mask
 		void setActiveSensorMaskLength();
 		
-		void readEEPROMVariables();
+		void readCoreVariablesFromEEPROM();
 		
 	public:
 		//! class constructor
@@ -74,10 +80,20 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		
 		void hibernateInterrupt();
 		
-	
+		uint8_t testVar;
+		void testFunc();
 		
 		
 		void setGatewayMacAddress(uint8_t[8]);
+		
+
+		//! It allows to remotely set a sensor mask to a node
+		/*! This sensor mask must correspond to the physical layout of the node and is
+		 *! not supposed to change!
+		 *  \@post: physicalSensorMaskLength will be set
+		 */
+		void setPhysicalSensorMask(uint8_t[2]);
+		
 		
 		//! It allows an installer to set a sensor mask of active sensors to a node via libelium-IDE
 		/*! The first argument must be the number of sensor types followed
@@ -85,20 +101,26 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		 *  \@post:	activeSensorMaskLength will be set
 		 */
 		void setActiveSensorMask(int, ...);
-		
-		
-		//! It allows to remotely set a sensor mask to a node
-		/*! This sensor mask must correspond to the physical layout of the node and is
-		 *! not supposed to change!
-		 *  \@post: physicalSensorMaskLength will be set
-		 */
-		void setPhysicalSensorMask(uint8_t[2]);
 
+		
+		//! It allows to set the active sensors to be measured at different times and to do this
+		//! setings via the libelium IDE
+		/*! The first argument must be the number of times (corresponding to the sensor) followed
+		 *! The next arguments must be of type int
+		 *  \pre: setActiveSensorMask() must be executed with the corresponding sensors
+		 */
+		uint8_t setActiveSensorTimes(uint16_t, ...);
+		
+		
 		//! It allows to remotely set a sensor mask to a node
 		/*! This sensor mask serves to indicate which installed sensors should be measured
 		 *  \@post: activeSensorMaskLength will be set
 		 */
 		void setActiveSensorMask(uint8_t[2]);
+		
+
+		
+		
 		uint8_t getMaskLength(uint16_t);
 		uint8_t getNrActiveSensors(uint16_t);
 
@@ -121,14 +143,13 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		
 		void createAndSaveNewTime2SleepArray(uint16_t *);
 		
+		void calculateNextTimes();
+		void recalculateTimesFromBeginning();
+		
 		uint16_t calculateMaxNrElementsForEEPROMArray(uint16_t *);
 		
 		
-	/*	
-		static int compare(const void *, const void *);
-		static int gcd(int, int);
-		static int lcm(int, int);
-	*/	
+
 		void testPrinting();
 		
 		//Store a value into the EEPROM memory
@@ -165,11 +186,17 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		uint16_t defaultTime2WakeInt;   
 		char defaultTime2WakeStr[18];		//"dd:hh:mm:ss"
 		
+		PowerPlan powerPlan;
+		
 
 		
 		// Defines if the node operates in default mode (one time2wake) or if
 		// individual sensors have different sleep time settings.
 		bool defaultOperation;
+		bool resetRTC;
+		bool eepromReadMode;  // Easy / Difficult
+		bool mustCalculateNextTimes;
+		bool lastArrayOfValues;
 		
 		uint8_t nrSleepTimes;
 		uint16_t * sleepTimes;

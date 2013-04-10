@@ -122,7 +122,7 @@ uint8_t PAQUtils::sendMask(uint8_t * destination, uint8_t type, uint16_t mask)
 }
 
 
-//FUNCTION GIVES TX = 2 ERROR BUT WORKS, MESSAGES ARE RECEIVED CORRECTLY 
+
 uint8_t PAQUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 {
 	uint8_t error = 2;

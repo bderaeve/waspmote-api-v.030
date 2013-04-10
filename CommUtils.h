@@ -29,7 +29,9 @@
  * Definitions & Declarations
  ******************************************************************************/
 //#define COMM_DEBUG
-//#define ASSOCIATION_DEBUG
+#define RECEIVE_DEBUG
+#define ASSOCIATION_DEBUG
+//#define TIME_DEBUG
 extern TreatData * myTreatPacket[];  //Declared in 'PacketUtils.h'
 
 typedef enum {SETUP, LOOP} 
@@ -129,7 +131,8 @@ class CommUtils
 		uint8_t sendMessage(uint8_t * destination, uint8_t, const char * message);		
 		
 		
-		#ifdef COMM_DEBUG
+		
+		#ifdef RECEIVE_DEBUG
 			//! It stores the received data for debugging reasons.
 			char receivedData[MAX_DATA];
 		#endif

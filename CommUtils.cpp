@@ -20,7 +20,6 @@
 #ifdef COMM_DEBUG
 	void CommUtils::testPrinting()
 	{
-		
 		USB.print("testCommUtils\n");
 	}
 #endif
@@ -114,14 +113,14 @@ uint8_t CommUtils::setupXBee()
 		if( !checkNodeAssociation(SETUP) )
 		{
 			error = 0;
-			#ifdef COMM_DEBUG
+			#ifdef ASSOCIATION_DEBUG
 				USB.println("checkNodeAssociation() ok");
 			#endif
 		}
 		else
 		{
 			error = 1;
-			#ifdef COMM_DEBUG
+			#ifdef ASSOCIATION_DEBUG
 				USB.println("ERROR CHECKING NODE ASSOCIATION");  
 			#endif
 		}
@@ -132,10 +131,10 @@ uint8_t CommUtils::setupXBee()
 	
 	// Powers RTC up, init I2C bus and read initial values
 	RTC.ON();	
-	
+	USB.println("time set");
 	// Saving battery (!!!in combination with Hibernate, RTC may only be used to set
 	// the wake! Other usage can cause internal collisions!!!)
-	//RTC.setMode(RTC_OFF,RTC_NORMAL_MODE); 
+	RTC.setMode(RTC_OFF,RTC_NORMAL_MODE); 
 		
 		
 	return error;
@@ -227,14 +226,14 @@ uint8_t CommUtils::setupXBee(uint8_t pan[8])
 		if( !checkNodeAssociation(SETUP) )
 		{
 			error = 0;
-			#ifdef COMM_DEBUG
+			#ifdef ASSOCIATION_DEBUG
 				USB.println("checkNodeAssociation() ok");
 			#endif
 		}
 		else
 		{
 			error = 1;
-			#ifdef COMM_DEBUG
+			#ifdef ASSOCIATION_DEBUG
 				USB.println("ERROR CHECKING NODE ASSOCIATION");  
 			#endif
 		}
@@ -248,7 +247,7 @@ uint8_t CommUtils::setupXBee(uint8_t pan[8])
 	
 	// Saving battery (!!!in combination with Hibernate, RTC may only be used to set
 	// the wake! Other usage can cause internal collisions!!!)
-	//RTC.setMode(RTC_OFF,RTC_NORMAL_MODE); 
+	RTC.setMode(RTC_OFF,RTC_NORMAL_MODE); 
 	
 	return error;
 }
@@ -275,15 +274,22 @@ uint8_t CommUtils::checkNodeAssociation(AssociationMode mode)
 				Utils.setLED(LED0, LED_OFF);
 			#endif
 			
-			//delay(6000);
+			//! After a full setup the XBee will connect faster with this delay. 
+			//! In normal operation mode this is just a waste of time.
+			if( mode == SETUP )
+				delay(6000);
+			//else delay(2000);
+				
 			xbeeZB.getAssociationIndication();
 			
-			//#ifdef ASSOCIATION_DEBUG
+			#ifdef ASSOCIATION_DEBUG
 				printAssociationState();	
-			//#endif
+			#endif
 		}
 		
-		printCurrentNetworkParams();
+			#ifdef ASSOCIATION_DEBUG
+			printCurrentNetworkParams();
+			#endif
 		
 		if(!xbeeZB.associationIndication) 
 		{
@@ -413,8 +419,12 @@ uint8_t CommUtils::receiveMessages()
 	long previous = 0;
     previous=millis();
 	
-    while( (millis()-previous) < 20000 )
-    {
+	#ifdef RECEIVE_DEBUG
+		USB.println("checking for received messages");
+	#endif
+	
+    //while( (millis()-previous) < 20000 )
+    //{
           if( XBee.available() )
           {
 				error = 1;
@@ -435,7 +445,7 @@ uint8_t CommUtils::receiveMessages()
 						// For example: show DATA field:
 						error = 0;
 						
-						#ifdef COMM_DEBUG
+						#ifdef RECEIVE_DEBUG
 							USB.print("Data: ");
 							
 							for(int f=1;f<xbeeZB.packet_finished[xbeeZB.pos-1]->data_length;f++)
@@ -445,15 +455,17 @@ uint8_t CommUtils::receiveMessages()
 							}
 						#endif  
 						
-						
+						/*
 						(*myTreatPacket[xbeeZB.packet_finished[xbeeZB.pos-1]->packetID])
 							(xbeeZB.packet_finished[xbeeZB.pos-1]);
-						
+						*/
 					
-						#ifdef COMM_DEBUG
+						#ifdef RECEIVE_DEBUG
 							USB.print("receivedData(MAX_DATA) = ");
 							USB.println(receivedData);
 						#endif
+						
+						
 						
 						//sendAnswerBack();
 						
@@ -476,11 +488,12 @@ uint8_t CommUtils::receiveMessages()
           else
           {
 				error = 1;
-				#ifdef COMM_DEBUG
+				#ifdef RECEIVE_DEBUG
 					USB.println("XBEE not available\r\n");
 				#endif
           }  
-    }
+    //}
+	
 	return error;
 }
 
@@ -534,7 +547,7 @@ bool CommUtils::sendMessageLocalWorkingWithType(const char * message, uint8_t ty
       paq_sent->opt=0; 
       xbeeZB.hops=0;
       xbeeZB.setOriginParams(paq_sent, MY_TYPE);
-      xbeeZB.setDestinationParams(paq_sent, destination, message, MAC_TYPE, DATA_ABSOLUTE);
+      xbeeZB.setDestinationParams(paq_sent, destination, message, MAC_TYPE, DATA_ABSOLUTE);  
       xbeeZB.sendXBee(paq_sent);
       USB.print("start printing xbeeZB.error_TX:");
       USB.println(xbeeZB.error_TX);// print xbeeZB.error_TX
@@ -637,7 +650,15 @@ uint8_t CommUtils::sendMessage(uint8_t * destination, uint8_t type, const char *
 	  xbeeZB.setOriginParams(paq_sent, MY_TYPE);
       xbeeZB.setDestinationParams(paq_sent, destination, message, MAC_TYPE, DATA_ABSOLUTE);
 	  //xbeeZB.setDestinationParams(paq_sent, "0013A2004069737A", message, MAC_TYPE, DATA_ABSOLUTE);
+	  
+	  		#ifdef TIME_DEBUG
+				USB.print("start sending"); USB.println( millis() );
+			#endif
       xbeeZB.sendXBee(paq_sent);
+	  
+	  	  	#ifdef TIME_DEBUG
+				USB.print("end sending"); USB.println( millis() );
+			#endif
 	 
 	  #ifdef COMM_DEBUG
 	 	  USB.print("start printing xbeeZB.error_TX:");

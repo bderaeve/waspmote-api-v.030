@@ -17,6 +17,13 @@
 #include <inttypes.h>
 
 
+void RTCUtils::reinitialize()
+{
+	RTC.setTime("00:00:00:00:00:00:00");
+		#ifdef FINAL_DEBUG_NODE
+			COMM.sendMessage(xbeeZB.GATEWAY_MAC, "RTC has been reset");	
+		#endif
+}
 
 char * RTCUtils::getTime()
 {
@@ -25,7 +32,7 @@ char * RTCUtils::getTime()
 	
 	#ifdef RTC_UTILS_DEBUG_V2
 		USB.print("RTC = "); USB.println(RTC.getTime());
-		USB.print("RTCint = "); USB.println( (int) RTCint );
+		USB.print("RTCint = "); USB.println( (int) RTCSecMinHourInt );
 	#endif
 	
 	return RTC.getTime();
@@ -149,7 +156,7 @@ uint8_t RTCUtils::setNextTimeWhenToWakeUpViaOffset(uint16_t offset)
 			#endif
 		}
 		
-		nextTime2WakeUpHoursMinsSecsInt = offset + RTCint;
+		nextTime2WakeUpHoursMinsSecsInt = offset + RTCSecMinHourInt;
 		convertTime2Char(nextTime2WakeUpHoursMinsSecsInt, nextDay2WakeUpInt, nextTime2WakeUpChar);
 			#ifdef RTC_UTILS_DEBUG_V2
 				USB.print("nextTime2WakeUpHoursMinsSecsInt = "); USB.println( (int) nextTime2WakeUpHoursMinsSecsInt );
@@ -179,10 +186,10 @@ void RTCUtils::convertRTCToInt()
 		//USB.print("RTCdays "); USB.println( (int) RTC.day );
 	#endif
 
-	RTCint = 0;
-	RTCint += RTC.second / 10;
-	RTCint += RTC.minute * 6;
-	RTCint += RTC.hour * 360;
+	RTCSecMinHourInt = 0;
+	RTCSecMinHourInt += RTC.second / 10;
+	RTCSecMinHourInt += RTC.minute * 6;
+	RTCSecMinHourInt += RTC.hour * 360;
 	//RTCint += RTC.day * 8640;
 }
 
