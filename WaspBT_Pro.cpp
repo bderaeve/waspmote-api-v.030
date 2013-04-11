@@ -24,6 +24,7 @@
 #include "WaspClasses.h"
 #endif
 
+#ifdef WASPBT_PRO
 // Private Methods //
 
 /*
@@ -1466,3 +1467,5 @@ void WaspBT_Pro::printBuffer2(){
 #endif
 
 WaspBT_Pro BT_Pro=WaspBT_Pro();		//object
+
+#endif

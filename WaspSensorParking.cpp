@@ -26,6 +26,7 @@
 #include <WaspClasses.h>
 #endif
 
+#ifdef USE_WASP_SENSOR_PARKING
 // Constructors ////////////////////////////////////////////////////////////////
 
 WaspSensorParking::WaspSensorParking()
@@ -209,3 +210,5 @@ boolean	WaspSensorParking::estimateState(void)
 
 
 WaspSensorParking SensorParking=WaspSensorParking();
+
+#endif

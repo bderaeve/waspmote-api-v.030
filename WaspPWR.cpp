@@ -177,11 +177,13 @@ void	WaspPWR::switchesOFF(uint8_t option)
 	
 	if( option & RTC_OFF )
 	{
+		#ifdef USE_WASP_ACC
 		if( !(ACC.AccEventMode & ACC_FREE_FALL)  && !(ACC.AccEventMode & ACC_DIRECTION) )
 		{
 			pinMode(RTC_PW,OUTPUT);
 			digitalWrite(RTC_PW,LOW);
 		}
+		#endif
 	}
 	
 	if( option & BAT_OFF )
@@ -208,10 +210,12 @@ void	WaspPWR::switchesON(uint8_t option)
  */
 void 	WaspPWR::clearInts()
 {
+#ifdef USE_WASP_ACC
 	if( intFlag & ACC_INT )
 	{
 		ACC.setFF();
 	}
+#endif	
 	if( intFlag & BAT_INT )
 	{
 	}

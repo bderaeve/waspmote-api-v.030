@@ -19,7 +19,7 @@
  *  Design:			David Gascón
  *  Implementation:	Marcos Yarza, Javier Siscart
  */
- 
+#ifdef WASP_SENSOR_RADIATION 
  
 #ifndef __WPROGRAM_H__
 #include "WaspClasses.h"
@@ -255,3 +255,5 @@ void WaspSensorRadiation::countPulse(){
 
 //object initialization
 WaspSensorRadiation SensorRadiation=WaspSensorRadiation();	
+
+#endif

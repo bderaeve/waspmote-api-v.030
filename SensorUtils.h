@@ -4,7 +4,6 @@
 /******************************************************************************
  * Includes
  ******************************************************************************/
-
 #include <inttypes.h>
 
 /******************************************************************************
@@ -17,6 +16,8 @@ typedef enum {TEMPERATURE = 0x0001, HUMIDITY = 0x0002, PRESSURE = 0x0004,
 	SensorType;
 	
 #define NUM_MEASUREMENTS 3
+#define NUM_SENSORS 8  //MUST BE <=16 FOR EEPROM CONFIGURATION
+
 
 //! Function pointers to save sensor data
 /*! Since the size of the data to insert is constant there's no reason to
@@ -31,7 +32,7 @@ typedef uint16_t StoreSensorData();
 	extern uint16_t saveBattery();
 	extern uint16_t saveCO2();
 	
-#define NUM_SENSORS 8  //MUST BE <=16 FOR EEPROM CONFIGURATION
+
 
 /******************************************************************************
  * Class
@@ -50,8 +51,6 @@ class SensorUtils
 		  \return void
 		*/
 		SensorUtils();
-		
-		void testPrinting();
 		
 		
 		//! It gets the current SENS_TEMPERATURE value
@@ -135,10 +134,6 @@ class SensorUtils
 		*/ 
 		uint8_t sensorValue2Chars(float, SensorType);
 		
-		
-		//static int compare(const void *x, const void *y); 
-		//static int gcd(int, int);
-	
 		
 		//! It is called when sensors get individual sensor times
 		void saveSensorMeasuringIntervalTimes();

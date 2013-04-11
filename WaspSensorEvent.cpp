@@ -19,11 +19,12 @@
  *  Design:		David Gascón
  *  Implementation:	Alberto Bielsa, David Cuartielles
  */
- 
+#ifdef USE_WASP_SENSOR_EVENT
 
 #ifndef __WPROGRAM_H__
   #include "WaspClasses.h"
 #endif
+
 
 // Constructors ////////////////////////////////////////////////////////////////
 
@@ -265,3 +266,5 @@ void WaspSensorEvent::setDigipot0(uint8_t address, float value)
 }
 
 WaspSensorEvent SensorEvent=WaspSensorEvent();
+
+#endif

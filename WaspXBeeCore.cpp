@@ -6043,13 +6043,13 @@ uint8_t WaspXBeeCore::new_firmware_received()
 		firm_info.data_count_packet_ant = 0;
 		firm_info.paq_disordered = 0;
 		firm_info.already_init = 1;
-		
+#ifdef ENOUGH_MEMORY		
 		file2.close();
 	
 		file1.close();
 	
 		root.close();
-		
+#endif		
 		sd_on=0;
 				
 		if( !sd_on )
@@ -6065,15 +6065,15 @@ uint8_t WaspXBeeCore::new_firmware_received()
 				sd_on=0;
 				error_sd=true;
 			}
-	
+#ifdef ENOUGH_MEMORY		
 			// initialize a FAT volume
 			volume.init(&card);
-	
 			// open the root directory
 			if(!root.openRoot(&volume)){
 				sd_on=0;
 				error_sd=true;
 			}
+#endif			
 		}
 		
 		// Create the first sector
@@ -6081,7 +6081,7 @@ uint8_t WaspXBeeCore::new_firmware_received()
 			asteriscos[it]='*';
 		}
 		asteriscos[448] = '\0';
-		
+#ifdef ENOUGH_MEMORY			
 		if( !error_sd )
 		{
 			if( !file1.open(&root, firm_info.name_file, O_WRITE | O_CREAT | O_EXCL | O_SYNC | O_APPEND) )
@@ -6119,7 +6119,7 @@ uint8_t WaspXBeeCore::new_firmware_received()
 			setMulticastConf();
 			return 1;
 		}
-		
+#endif		
 		free(asteriscos);
 		asteriscos=NULL;
 		
@@ -6184,11 +6184,12 @@ void WaspXBeeCore::new_firmware_packets()
                			}
 								
 				// Write binary data string into firmware file
+#ifdef ENOUGH_MEMORY					
 				if(file1.write(data_bin,sd_index)!=sd_index)				
 				{
 					error_sd=true;
 				}
-								
+#endif								
 				firm_info.already_init = 0;
 
 				// Set new OTA previous packet arrival time 
@@ -6196,11 +6197,13 @@ void WaspXBeeCore::new_firmware_packets()
 				
 				if(error_sd)
 				{
+#ifdef ENOUGH_MEMORY					
 					programming_ON=0;
 					file1.remove(&root,firm_info.name_file);
 					firm_info.packets_received=0;
 					firm_info.paq_disordered=0;
 					setMulticastConf();
+#endif
 				}
 				else
 				{
@@ -6220,7 +6223,9 @@ void WaspXBeeCore::new_firmware_packets()
 				else
 				{
 					programming_ON=0;
+#ifdef ENOUGH_MEMORY						
 					file1.remove(&root,firm_info.name_file);
+#endif
 					firm_info.packets_received=0;
 					firm_info.paq_disordered=0;
 					setMulticastConf();					
@@ -6303,12 +6308,14 @@ void WaspXBeeCore::new_firmware_end()
 			
 			if( send_ok )
 			{
+#ifdef ENOUGH_MEMORY				
 				file1.close();
 				delay(10);
 				
 				if(!file1.open(&root, firm_info.name_file, O_READ)){
 					send_ok = false;
 				}
+#endif
 			}
 		}
 		else{
@@ -6323,12 +6330,12 @@ void WaspXBeeCore::new_firmware_end()
 	{
 		programming_ON=0;
 		firm_info.packets_received=0;
-
+#ifdef ENOUGH_MEMORY	
 		if(!file2.open(&root, BOOT_LIST, O_WRITE | O_CREAT | O_EXCL | O_SYNC | O_APPEND) )
 		{
 			if(!file2.open(&root, BOOT_LIST, O_WRITE | O_SYNC | O_APPEND)) error_sd=true;
 		}
-		
+	
 		// Write program ID into file
 		if(file2.write(firm_info.ID,strlen(firm_info.ID))!=strlen(firm_info.ID))
 		{
@@ -6346,7 +6353,7 @@ void WaspXBeeCore::new_firmware_end()
 		{
 			error_sd=true;
 		}
-		
+#endif		
 		if( !error_sd )
 		{
 			paq_sent=(packetXBee*) calloc(1,sizeof(packetXBee)); 
@@ -6382,7 +6389,9 @@ void WaspXBeeCore::new_firmware_end()
 		}
 		else
 		{
+#ifdef ENOUGH_MEMORY		
 			file1.remove(&root,firm_info.name_file);
+#endif			
 			programming_ON=0;
 			firm_info.packets_received=0;
 				
@@ -6422,7 +6431,9 @@ void WaspXBeeCore::new_firmware_end()
 	}
 	else
 	{
+#ifdef ENOUGH_MEMORY		
 		file1.remove(&root,firm_info.name_file);
+#endif		
 		programming_ON=0;
 		firm_info.packets_received=0;
 				
@@ -6459,12 +6470,13 @@ void WaspXBeeCore::new_firmware_end()
 		
 		setMulticastConf();
 	}
-
+#ifdef ENOUGH_MEMORY	
 	file2.close();
 	
 	file1.close();
 	
 	root.close();
+#endif
 		
 	sd_on=0;
 }
@@ -6516,11 +6528,11 @@ void WaspXBeeCore::upload_firmware()
 				sd_on=0;
 				error_sd=true;
 			}
-	
+#ifdef ENOUGH_MEMORY	
 			// initialize a FAT volume
 			volume.init(&card);
 	
-			// open the root directory
+			// open the root directory			
 			if(!root.openRoot(&volume)){
 				sd_on=0;
 				error_sd=true;
@@ -6532,10 +6544,12 @@ void WaspXBeeCore::upload_firmware()
 				error_sd=false;
 				file2.close();
 			}
+#endif
 		}
 	
 		if( !error_sd )
 		{
+#ifdef ENOUGH_MEMORY			
 			if(file2.open(&root, BOOT_LIST, O_READ))
 			{
 				for(it=0;it<32;it++)
@@ -6560,6 +6574,7 @@ void WaspXBeeCore::upload_firmware()
 					if(!id_exist && !end_file ) id_exist=true;
 					else if(id_exist) break;
 				}
+#endif				
 			}
 			else
 			{
@@ -6574,10 +6589,11 @@ void WaspXBeeCore::upload_firmware()
 					firm_info.name_file[it]=firm_info.ID[it];
 				}
 				firm_info.name_file[it]='\0';
-			
+#ifdef ENOUGH_MEMORY				
 				if(!file1.open(&root, firm_info.name_file, O_READ)){
 					id_exist=false;
 				}
+#endif				
 			}
 			
 			
@@ -6623,13 +6639,13 @@ void WaspXBeeCore::upload_firmware()
 			}  
 			free(paq_sent); 
 			paq_sent=NULL;
-		
+#ifdef ENOUGH_MEMORY			
 			file2.close();
 				
 			file1.close();
 				
 			root.close();
-		
+#endif		
 			sd_on=0;
 			
 			free(packet_finished[pos-1]);
@@ -6681,20 +6697,20 @@ void WaspXBeeCore::upload_firmware()
 			}  
 			free(paq_sent); 
 			paq_sent=NULL;
-		
+#ifdef ENOUGH_MEMORY			
 			file2.close();
 				
 			file1.close();
 				
 			root.close();
-		
+#endif		
 			sd_on = 0;	
 			
 			free(packet_finished[pos-1]);
 			packet_finished[pos-1]=NULL;
 		}
 	}	
-}
+//}
 
 
 /*
@@ -6816,7 +6832,7 @@ void WaspXBeeCore::request_bootlist()
 			if(!card.init(SPI_FULL_SPEED)){
 				sd_on=0;
 			}
-	
+#ifdef ENOUGH_MEMORY		
 			// initialize a FAT volume
 			volume.init(&card);
 	
@@ -6824,10 +6840,12 @@ void WaspXBeeCore::request_bootlist()
 			if(!root.openRoot(&volume)){
 				sd_on=0;
 			}
+#endif			
 		}
 	
 		if( sd_on )
 		{
+#ifdef ENOUGH_MEMORY			
 			if(file2.open(&root, BOOT_LIST, O_READ))
 			{
 				previous=millis();
@@ -6957,9 +6975,11 @@ void WaspXBeeCore::request_bootlist()
 					paq_sent=NULL;
 				}
 			}
+		
 			else
 			{
 			}
+#endif				
 		}
 		else
 		{
@@ -7149,14 +7169,16 @@ void WaspXBeeCore::delete_firmware()
 			if(!card.init(SPI_FULL_SPEED)){
 				sd_on=0;
 			}
-	
+#ifdef ENOUGH_MEMORY		
 			// initialize a FAT volume
 			volume.init(&card);
 	
 			// open the root directory
+			
 			if(!root.openRoot(&volume)){
 				sd_on=0;
 			}
+#endif			
 		}
 	
 		if( sd_on )
@@ -7169,6 +7191,7 @@ void WaspXBeeCore::delete_firmware()
 			file_to_delete[7]='\0';
 			
 			// Open boot list
+#ifdef ENOUGH_MEMORY				
 			if(file2.open(&root, BOOT_LIST, O_READ))
 			{
 				// Delete firmware file
@@ -7248,7 +7271,9 @@ void WaspXBeeCore::delete_firmware()
 				}
 				else error=true;
 			}
+		
 			else error=true;
+#endif				
 		}
 		else error=true;
 	}
@@ -7322,13 +7347,13 @@ void WaspXBeeCore::delete_firmware()
 		free(paq_sent); 
 		paq_sent=NULL;
 	}
-
+#ifdef ENOUGH_MEMORY	
 	file2.close();
 
 	file1.close();
 
 	root.close();
-
+#endif
 	sd_on=0;	
 }
 
@@ -7371,7 +7396,9 @@ uint8_t WaspXBeeCore::checkOtapTimeout()
 	   {
 		// Reach Timeout 
 		programming_ON=0;
+#ifdef ENOUGH_MEMORY			
 		file1.remove(&root,firm_info.name_file);
+#endif		
 		firm_info.packets_received=0;
 		firm_info.paq_disordered=0;
 		setMulticastConf();

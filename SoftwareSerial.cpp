@@ -28,7 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 The latest version of this library can always be found at
 http://arduiniana.org.
 */
-
+#ifdef USE_SOFTWARE_SERIAL
 // When set, _DEBUG co-opts pins 11 and 13 for debugging with an
 // oscilloscope or logic analyzer.  Beware: it also slightly modifies
 // the bit times, so don't rely on it too much at high baud rates
@@ -464,3 +464,5 @@ void SoftwareSerial::print(const char *s)
   while (*s)
     write(*s++);
 }
+
+#endif

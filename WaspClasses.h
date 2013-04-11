@@ -52,6 +52,7 @@
 #include "wiring.h"
 
 // SD
+/*
 #include "sd_raw_config.h"
 #include "sd_raw.h"
 #include "partition.h"
@@ -63,6 +64,7 @@
 #include "SdFat.h"
 #include "SdFatUtil.h"
 #include "SdInfo.h"
+*/
 
 
 #ifdef __cplusplus
@@ -70,43 +72,123 @@
 #include "WaspUtils.h"
 #include "HardwareSerial.h"
 #include "WaspUSB.h"
+
 #include "WaspXBee.h"
-#include "WaspGPS.h"
-#include "WaspGPRS.h"
-#include "WaspGPRSconstants.h"
+
+	#ifdef USE_WASP_GPS
+		#include "WaspGPS.h"
+	#endif	
+
+	#ifdef USE_WASP_GPRS
+		#include "WaspGPRS.h"
+		#include "WaspGPRSconstants.h"
+	#endif	
+
 #include "Wire.h"
 #include "WaspRTC.h"
-#include "WaspACC.h"
-#include "WaspSD.h"
-#include "WaspPWR.h"
-#include "WaspXBeeCore.h"
-#include "WaspXBee802.h"
-#include "WaspXBeeZB.h"
-#include "WaspXBeeDM.h"
-#include "WaspXBee868.h"
-#include "WaspXBeeXSC.h"
-#include "WaspSensorAgr.h"
-#include "WaspSensorGas.h"
-#include "WaspSensorEvent.h"
-#include "WaspSensorPrototyping.h"
-#include "WaspBT.h"
-#include "WaspBTConstants.h"
-#include "WaspSensorSmart.h"
-#include "MemoryFree.h"
-#include "WaspSensorCities.h"
-#include "WaspSensorParking.h"
-#include "WaspBT_Pro.h"
-#include "WaspWIFI.h"
-#include "WaspGPRS_Pro.h"
-#include "WaspGPRS_Proconstants.h"
-#include "WaspSensorSmart_v20.h"
-#include "WaspSensorRadiation.h"
-#include "WaspSensorAgr_v20.h"
-#include "WaspRFID13.h"
-#include "SoftwareSerial.h"
-#include "WaspSensorGas_v20.h"
-#include "WaspSensorPrototyping_v20.h"
 
+	#ifdef USE_WASP_ACC
+		#include "WaspACC.h"
+	#endif
+	
+	#ifdef USE_WASP_SD
+		#include "WaspSD.h"
+	#endif
+
+	#include "WaspPWR.h"
+	#include "WaspXBeeCore.h"
+
+	#ifdef USE_WASP_XBEE802
+		#include "WaspXBee802.h"
+	#endif
+	
+#include "WaspXBeeZB.h"
+
+	#ifdef USE_WASP_XBEE_DM
+		#include "WaspXBeeDM.h"
+	#endif	
+
+	#ifdef USE_WASP_XBEE868
+		#include "WaspXBee868.h"
+	#endif	
+
+	#ifdef USE_WASP_XBEE_XSC
+		#include "WaspXBeeXSC.h"
+	#endif	
+	
+	#ifdef USE_WASP_SENSOR_AGR	
+		#include "WaspSensorAgr.h"
+	#endif
+	
+	#ifdef USE_WASP_SENSOR_GAS	
+		#include "WaspSensorGas.h"
+	#endif
+	
+	#ifdef USE_WASP_SENSOR_EVENT
+		#include "WaspSensorEvent.h"
+	#endif
+	
+	#ifdef USE_WASP_SENSOR_PROTOTYPING
+		#include "WaspSensorPrototyping.h"
+	#endif
+
+	#ifdef USE_WASP_BT
+		#include "WaspBT.h"
+		#include "WaspBTConstants.h"
+	#endif
+	
+	#ifdef USE_WASP_SENSOR_SMART	
+		#include "WaspSensorSmart.h"
+	#endif	
+	
+	
+#include "MemoryFree.h"
+
+
+	#ifdef USE_WASP_SENSOR_CITIES
+		#include "WaspSensorCities.h"
+	#endif
+
+	#ifdef USE_WASP_SENSOR_PARKING
+		#include "WaspSensorParking.h"
+	#endif
+
+	#ifdef WASPBT_PRO
+		#include "WaspBT_Pro.h"
+	#endif
+
+	#ifdef USE_WIFI
+		#include "WaspWIFI.h"
+	#endif
+
+	#ifdef USE_WASP_GPRS_PRO	
+		#include "WaspGPRS_Pro.h"
+		#include "WaspGPRS_Proconstants.h"
+	#endif
+		
+	#ifdef USE_WASP_SENSOR_SMART_V20
+		#include "WaspSensorSmart_v20.h"
+	#endif
+
+	#ifdef WASP_SENSOR_RADIATION	
+		#include "WaspSensorRadiation.h"
+	#endif	
+
+#include "WaspSensorAgr_v20.h"
+
+	#ifdef USE_WASP_RFID
+		#include "WaspRFID13.h"
+	#endif
+	
+	#ifdef USE_SOFTWARE_SERIAL
+		#include "SoftwareSerial.h"
+	#endif
+	
+#include "WaspSensorGas_v20.h"
+
+	#ifdef USE_WASP_SENSOR_PROTOTYPING_V20 
+		#include "WaspSensorPrototyping_v20.h"
+	#endif
 
 // random prototypes
 long random(long);

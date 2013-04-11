@@ -19,7 +19,7 @@
  *  Design:		David Gascón
  *  Implementation:	Alberto Bielsa, David Cuartielles
  */
- 
+#ifdef USE_WASP_SENSOR_SMART	
 
 #ifndef __WPROGRAM_H__
   #include "WaspClasses.h"
@@ -505,3 +505,5 @@ float WaspSensorSmart::conversion(byte data_input[3])
 
 
 WaspSensorSmart SensorSmart=WaspSensorSmart();
+
+#endif

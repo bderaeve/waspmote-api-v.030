@@ -309,10 +309,17 @@ float WaspSensorAgr_v20::readDendrometer()
 		i++;
 	}
 	
+	#ifdef USE_WASP_ACC
 	if( Wire.I2C_ON && !ACC.isON && RTC.isON!=1){
 		PWR.closeI2C();
 		RTC.setMode(RTC_OFF, RTC_I2C_MODE);
 	}
+	#else
+	if( Wire.I2C_ON && RTC.isON!=1){
+		PWR.closeI2C();
+		RTC.setMode(RTC_OFF, RTC_I2C_MODE);
+	}
+	#endif	
   
 	return value_dendro = conversion(data_dendro,0);
 }
@@ -374,11 +381,17 @@ float WaspSensorAgr_v20::readPT1000()
 		data_pt1000[k]=Wire.receive();
 		k++;
 	}
-
+	#ifdef USE_WASP_ACC
 	if( Wire.I2C_ON && !ACC.isON && RTC.isON!=1){
 		PWR.closeI2C();
 		RTC.setMode(RTC_OFF, RTC_I2C_MODE);
 	}
+	#else
+	if( Wire.I2C_ON && RTC.isON!=1){
+		PWR.closeI2C();
+		RTC.setMode(RTC_OFF, RTC_I2C_MODE);
+	}
+	#endif
 	return value_pt1000 = conversion(data_pt1000,1);  
 }
 
@@ -405,11 +418,17 @@ float WaspSensorAgr_v20::readRadiation()
 	}
   
 // FIN DE LA LECTURA
-  	
+  	#ifdef USE_WASP_ACC
 	if( Wire.I2C_ON && !ACC.isON && RTC.isON!=1){
 		PWR.closeI2C();
 		RTC.setMode(RTC_OFF, RTC_I2C_MODE);
 	}
+	#else
+	if( Wire.I2C_ON && RTC.isON!=1){
+		PWR.closeI2C();
+		RTC.setMode(RTC_OFF, RTC_I2C_MODE);
+	}	
+	#endif
 // CONVERSIÓN A VALOR DE TENSIÓN
   
 	val = long(data_apogee[1]) + long(data_apogee[0])*256;

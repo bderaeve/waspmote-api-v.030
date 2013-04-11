@@ -19,11 +19,12 @@
  *  Design:		David Gascón
  *  Implementation:	David Cuartielles, Alberto Bielsa, Roland Riegel, Ingo Korb, Aske Olsson
  */
- 
+#ifdef USE_WASP_SD 
 
 #ifndef __WPROGRAM_H__
   #include "WaspClasses.h"
 #endif
+
 
 // Variables ///////////////////////////////////////////////////////////////////
 
@@ -1762,3 +1763,4 @@ uint16_t WaspSD::cleanFlags(void)
 WaspSD SD = WaspSD();
 
 
+#endif

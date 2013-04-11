@@ -19,7 +19,7 @@
  *  Design:		David Gascón
  *  Implementation:	Alberto Bielsa, Yuri Carmona
  */
-
+#ifdef USE_WASP_XBEE_DM
 
 #ifndef __WPROGRAM_H__
 	#include "WaspClasses.h"
@@ -529,3 +529,5 @@ uint8_t WaspXBeeDM::restoreCompiled()
 }
 
 WaspXBeeDM	xbeeDM = WaspXBeeDM();
+
+#endif

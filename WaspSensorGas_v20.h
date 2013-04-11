@@ -41,7 +41,10 @@
 /******************************************************************************
  * Definitions & Declarations
  ******************************************************************************/
- 
+#define	SENS_ON		0
+#define	SENS_OFF	1
+#define	SENS_3V3	0
+#define	SENS_5V		1
 /*! \def SENS_TEMPERATURE
     \brief Sensor types. Temperature sensor in this case
     

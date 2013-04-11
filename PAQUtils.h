@@ -46,6 +46,9 @@ uint8_t InsertVane(uint8_t *, char *);
 uint8_t InsertPluvio(uint8_t *, char *);*/
 
 
+
+uint16_t toUint16_t(unsigned char &, unsigned char &);
+
 /*********************************************************************************************************
  *	STATIC FUNCTION POINTERS FOR HANDLING RECEIVED MESSAGES:
  ********************************************************************************************************/

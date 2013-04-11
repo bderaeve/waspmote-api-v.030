@@ -19,7 +19,7 @@
  *  Design:		David Gascón
  *  Implementation:	Alberto Bielsa, Yuri Carmona
  */
-
+#ifdef USE_WASP_XBEE802
 
 #ifndef __WPROGRAM_H__
 	#include "WaspClasses.h"
@@ -384,3 +384,5 @@ uint8_t WaspXBee802::resetACKcounter()
 }
 
 WaspXBee802	xbee802 = WaspXBee802();
+
+#endif

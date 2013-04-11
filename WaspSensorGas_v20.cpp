@@ -409,10 +409,17 @@ void WaspSensorGas_v20::setResistor(uint8_t address, float value)
 	Wire.send(B00000000);
 	Wire.send(resist);
 	Wire.endTransmission();
+	#ifdef USE_WASP_ACC
 	if( Wire.I2C_ON && !ACC.isON && RTC.isON!=1){
 		PWR.closeI2C();
 		RTC.setMode(RTC_OFF, RTC_I2C_MODE);
 	}
+	#else
+	if( Wire.I2C_ON && RTC.isON!=1){
+		PWR.closeI2C();
+		RTC.setMode(RTC_OFF, RTC_I2C_MODE);
+	}	
+	#endif
 }
 
 /*	configureAmplifier: configures the gain corresponding to the indicated
@@ -457,10 +464,17 @@ void WaspSensorGas_v20::setAmplifier(uint8_t address, uint8_t value)
 	Wire.send(B00010000);
 	Wire.send(ampli);
 	Wire.endTransmission();
+	#ifdef USE_WASP_ACC
 	if( Wire.I2C_ON && !ACC.isON && RTC.isON!=1){
 		PWR.closeI2C();
 		RTC.setMode(RTC_OFF, RTC_I2C_MODE);
 	}
+	#else
+	if( Wire.I2C_ON && RTC.isON!=1){
+		PWR.closeI2C();
+		RTC.setMode(RTC_OFF, RTC_I2C_MODE);
+	}	
+	#endif
 }
 
 /*	readValue: reads the analog to digital converter input indicated of the given

@@ -20,6 +20,8 @@
  *  Implementation:	Alberto Bielsa, Manuel Calahorra
  */
  
+#ifdef USE_WASP_SENSOR_PROTOTYPING 
+ 
 #ifndef __WPROGRAM_H__
 	#include "WaspClasses.h"
 #endif
@@ -140,3 +142,5 @@ float WaspSensorPrototyping::readAnalogSensor(uint8_t pin)
 
 
 WaspSensorPrototyping SensorProto=WaspSensorPrototyping();
+
+#endif

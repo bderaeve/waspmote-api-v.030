@@ -131,21 +131,28 @@ uint8_t CommUtils::setupXBee()
 	
 	// Powers RTC up, init I2C bus and read initial values
 	RTC.ON();	
-	USB.println("time set");
+
 	// Saving battery (!!!in combination with Hibernate, RTC may only be used to set
 	// the wake! Other usage can cause internal collisions!!!)
 	RTC.setMode(RTC_OFF,RTC_NORMAL_MODE); 
 		
-		
+		#ifdef NODE_MEMORY_DEBUG
+			USB.print("FREE MEM"); USB.println(freeMemory());
+		#endif
+	  
 	return error;
 }
 
 
-uint8_t CommUtils::setupXBee(uint8_t pan[8])
+uint8_t CommUtils::setupXBee(uint8_t pan[8], uint8_t gateway[8], char * nodeID)
 {
 	uint8_t error = 2;
+
+  ///////////////////////////////
+  // A. XBEE
+  ///////////////////////////////
+  
 	xbeeZB.init(ZIGBEE,FREQ2_4G,NORMAL);
-	
 	xbeeZB.ON();
 	xbeeZB.wake();  // Must do this for end devices to work
 	delay(1000);
@@ -211,10 +218,13 @@ uint8_t CommUtils::setupXBee(uint8_t pan[8])
 			#endif
 		}
 	
-	// 1.5 Write values to XBEE memory	
+	// 1.5 Set node_ID
+		xbeeZB.setNodeIdentifier(nodeID);
+	
+	// 1.6 Write values to XBEE memory	
 		xbeeZB.writeValues();	
 	
-	// 1.6 Reboot the XBee module 
+	// 1.7 Reboot the XBee module 
 		xbeeZB.OFF(); 
 		delay(3000); 
 		xbeeZB.ON(); 
@@ -249,7 +259,17 @@ uint8_t CommUtils::setupXBee(uint8_t pan[8])
 	// the wake! Other usage can cause internal collisions!!!)
 	RTC.setMode(RTC_OFF,RTC_NORMAL_MODE); 
 	
-	return error;
+	  #ifdef NODE_MEMORY_DEBUG
+			USB.print("FREE MEM "); USB.println(freeMemory());
+	  #endif
+
+  ///////////////////////////////
+  // C. STORE DEFAULT GATEWAY
+  ///////////////////////////////
+	
+	xbeeZB.setGatewayMacAddress(gateway);
+	
+    return error;
 }
 
 
@@ -278,17 +298,16 @@ uint8_t CommUtils::checkNodeAssociation(AssociationMode mode)
 			//! In normal operation mode this is just a waste of time.
 			if( mode == SETUP )
 				delay(6000);
-			//else delay(2000);
 				
 			xbeeZB.getAssociationIndication();
 			
-			#ifdef ASSOCIATION_DEBUG
+			#ifdef ASSOCIATION_DEBUG_EXTENDED
 				printAssociationState();	
 			#endif
 		}
 		
 			#ifdef ASSOCIATION_DEBUG
-			printCurrentNetworkParams();
+				printCurrentNetworkParams();
 			#endif
 		
 		if(!xbeeZB.associationIndication) 
@@ -333,6 +352,11 @@ uint8_t CommUtils::checkNodeAssociation(AssociationMode mode)
 			#endif
 		}
 		
+		#ifdef 	ASSOCIATION_DEBUG
+		USB.print("\nerror: ");
+		USB.println( (int) error);
+		#endif
+		
 	return error;
 	//}
 	/*else
@@ -372,206 +396,143 @@ void CommUtils::printCurrentNetworkParams()
 }
 
 
-
-void CommUtils::printAssociationState()
-{
-  switch(xbeeZB.associationIndication)
-  {
-    case 0x00  :  USB.println("Successfully formed or joined a network");
-                  break;
-    case 0x21  :  USB.println("Scan found no PANs");
-                  break;   
-    case 0x22  :  USB.println("Scan found no valid PANs based on current SC and ID settings");
-                  break;   
-    case 0x23  :  USB.println("Valid Coordinator or Routers found, but they are not allowing joining (NJ expired)");
-                  break;   
-    case 0x24  :  USB.println("No joinable beacons were found");
-                  break;   
-    case 0x25  :  USB.println("Unexpected state, node should not be attempting to join at this time");
-                  break;
-    case 0x27  :  USB.println("Node Joining attempt failed");
-                  break;
-    case 0x2A  :  USB.println("Coordinator Start attempt failed");
-                  break;
-    case 0x2B  :  USB.println("Checking for an existing coordinator");
-                  break;
-    case 0x2C  :  USB.println("Attempt to leave the network failed");
-                  break;
-    case 0xAB  :  USB.println("Attempted to join a device that did not respond.");
-                  break;
-    case 0xAC  :  USB.println("Secure join error  :  network security key received unsecured");
-                  break;
-    case 0xAD  :  USB.println("Secure join error  :  network security key not received");
-                  break;
-    case 0xAF  :  USB.println("Secure join error  :  joining device does not have the right preconfigured link key");
-                  break;
-    case 0xFF  :  USB.println("Scanning for a ZigBee network (routers and end devices)");
-                  break;
-    default    :  USB.println("Unkown associationIndication");
-                  break;
-  }
-}
-
+#ifdef ASSOCIATION_DEBUG_EXTENDED
+	void CommUtils::printAssociationState()
+	{
+	  switch(xbeeZB.associationIndication)
+	  {
+		case 0x00  :  USB.println("Successfully formed or joined a network");
+					  break;
+		case 0x21  :  USB.println("Scan found no PANs");
+					  break;   
+		case 0x22  :  USB.println("Scan found no valid PANs based on current SC and ID settings");
+					  break;   
+		case 0x23  :  USB.println("Valid Coordinator or Routers found, but they are not allowing joining (NJ expired)");
+					  break;   
+		case 0x24  :  USB.println("No joinable beacons were found");
+					  break;   
+		case 0x25  :  USB.println("Unexpected state, node should not be attempting to join at this time");
+					  break;
+		case 0x27  :  USB.println("Node Joining attempt failed");
+					  break;
+		case 0x2A  :  USB.println("Coordinator Start attempt failed");
+					  break;
+		case 0x2B  :  USB.println("Checking for an existing coordinator");
+					  break;
+		case 0x2C  :  USB.println("Attempt to leave the network failed");
+					  break;
+		case 0xAB  :  USB.println("Attempted to join a device that did not respond.");
+					  break;
+		case 0xAC  :  USB.println("Secure join error  :  network security key received unsecured");
+					  break;
+		case 0xAD  :  USB.println("Secure join error  :  network security key not received");
+					  break;
+		case 0xAF  :  USB.println("Secure join error  :  joining device does not have the right preconfigured link key");
+					  break;
+		case 0xFF  :  USB.println("Scanning for a ZigBee network (routers and end devices)");
+					  break;
+		default    :  USB.println("Unkown associationIndication");
+					  break;
+	  }
+	}
+#endif
 
 uint8_t CommUtils::receiveMessages()
 {
 	uint8_t error = 2;
+
 	long previous = 0;
     previous=millis();
 	
-	#ifdef RECEIVE_DEBUG
-		USB.println("checking for received messages");
-	#endif
+	//uint8_t temp = 0;
 	
-    //while( (millis()-previous) < 20000 )
-    //{
-          if( XBee.available() )
-          {
+		#ifdef RECEIVE_DEBUG
+			USB.println("checking for received messages");
+		#endif
+		#ifdef NODE_MEMORY_DEBUG
+			//USB.println("receivedMessages");
+			USB.print("FREE MEM"); USB.println(freeMemory());
+		#endif
+	
+	//Waiting ... sec on a message
+	while( (millis()-previous) < 20000 )
+	{
+		  if( XBee.available() )
+		  {
 				error = 1;
-                xbeeZB.treatData();
+				xbeeZB.treatData();
 				
 				#ifdef COMM_DEBUG
 					USB.print("start printing xbeeZB.error_RX:");
 					USB.println(xbeeZB.error_RX);
 				#endif
 				
-                if( !xbeeZB.error_RX )
-                {
+				if( !xbeeZB.error_RX )
+				{
 					//read ALL available packets (pos = 0 -> no packets available)
 					while( xbeeZB.pos > 0 )
 					{	
+						error = 0;
 						// Available information in 'xbeeZB.packet_finished' structure
 						// HERE it should be introduced the User's packet treatment        
 						// For example: show DATA field:
-						error = 0;
 						
 						#ifdef RECEIVE_DEBUG
-							USB.print("Data: ");
-							
-							for(int f=1;f<xbeeZB.packet_finished[xbeeZB.pos-1]->data_length;f++)
+							USB.print("\nData: ");
+							for(int f=0;f<xbeeZB.packet_finished[xbeeZB.pos-1]->data_length;f++)
 							{
 								receivedData[f] = xbeeZB.packet_finished[xbeeZB.pos-1]->data[f];
 									USB.print(xbeeZB.packet_finished[xbeeZB.pos-1]->data[f],BYTE);
+									
 							}
+							USB.print("\n\n");
+							USB.print(xbeeZB.packet_finished[xbeeZB.pos-1]->data[0],BYTE);
+							USB.print(xbeeZB.packet_finished[xbeeZB.pos-1]->data[1],BYTE);
+							USB.print( (char) xbeeZB.packet_finished[xbeeZB.pos-1]->data[0]);
+							USB.print( (char) xbeeZB.packet_finished[xbeeZB.pos-1]->data[1]);
 						#endif  
 						
-						/*
+						#ifdef NODE_MEMORY_DEBUG
+							USB.print("FREE MEM"); USB.println(freeMemory());
+						#endif
+						
+						#ifdef RECEIVE_DEBUG
+							USB.print("ID = "); USB.println( (int) xbeeZB.packet_finished[xbeeZB.pos-1]->packetID);
+						#endif
+						
 						(*myTreatPacket[xbeeZB.packet_finished[xbeeZB.pos-1]->packetID])
 							(xbeeZB.packet_finished[xbeeZB.pos-1]);
-						*/
-					
-						#ifdef RECEIVE_DEBUG
+						
+						
+						#ifdef RECEIVE_DEBUG_2
 							USB.print("receivedData(MAX_DATA) = ");
 							USB.println(receivedData);
 						#endif
-						
-						
-						
-						//sendAnswerBack();
-						
-						//Forward the data
-						//sendMessage(receivedData);
-						
-						//previous=millis();
-						
+
 						// AFTER THE DATA IS TREATED BY OWN FUNCTIONS:
-						//free memory
+						// FREE MEM
 						free(xbeeZB.packet_finished[xbeeZB.pos-1]); 
 						
-						//free pointer
+						// FREE POINTER
 						xbeeZB.packet_finished[xbeeZB.pos-1]=NULL; 
 						
 						xbeeZB.pos--;
 					}
-                }
-          }
-          else
-          {
+					break;
+				}
+		  }
+		  else
+		  {
 				error = 1;
-				#ifdef RECEIVE_DEBUG
+				#ifdef RECEIVE_DEBUG_2
 					USB.println("XBEE not available\r\n");
 				#endif
-          }  
-    //}
-	
+		  }   
+	}
+
 	return error;
 }
 
-bool CommUtils::sendMessageLocalWorking(const char * message, const char * destination)
-{
-      bool error = false;
-	  
-	  packetXBee * paq_sent;
-      paq_sent=(packetXBee*) calloc(1,sizeof(packetXBee)); 
-      paq_sent->mode=UNICAST;
-      paq_sent->MY_known=0;
-      paq_sent->packetID=0x02;		// TODO: CHANGE TO error ?
-      paq_sent->opt=0; 
-      xbeeZB.hops=0;
-      xbeeZB.setOriginParams(paq_sent, MY_TYPE);
-      xbeeZB.setDestinationParams(paq_sent, destination, message, MAC_TYPE, DATA_ABSOLUTE);
-      xbeeZB.sendXBee(paq_sent);
-      USB.print("start printing xbeeZB.error_TX:");
-      USB.println(xbeeZB.error_TX);// print xbeeZB.error_TX
-      if( !xbeeZB.error_TX )
-      {
-          //XBee.println("ok");
-          USB.println("End device sends out a challenge ok");
-          Utils.setLED(LED1, LED_ON);   // Ok, blink green LED
-          delay(500);
-          Utils.setLED(LED1, LED_OFF);
-          error = false;
-      }
-      else
-      { 
-          USB.println("challenge transmission error\n\n");
-          Utils.setLED(LED0, LED_ON);   // Error, blink red LED
-          delay(500);
-          Utils.setLED(LED0, LED_OFF);
-          error = true;
-      }
-      free(paq_sent);
-      paq_sent=NULL;
-      return error;
-} 
-
-bool CommUtils::sendMessageLocalWorkingWithType(const char * message, uint8_t type, const char * destination)
-{
-      bool error = false;
-	  
-	  packetXBee * paq_sent;
-      paq_sent=(packetXBee*) calloc(1,sizeof(packetXBee)); 
-      paq_sent->mode=UNICAST;
-      paq_sent->MY_known=0;
-      paq_sent->packetID=type; //IO_DATA;//0x02;
-      paq_sent->opt=0; 
-      xbeeZB.hops=0;
-      xbeeZB.setOriginParams(paq_sent, MY_TYPE);
-      xbeeZB.setDestinationParams(paq_sent, destination, message, MAC_TYPE, DATA_ABSOLUTE);  
-      xbeeZB.sendXBee(paq_sent);
-      USB.print("start printing xbeeZB.error_TX:");
-      USB.println(xbeeZB.error_TX);// print xbeeZB.error_TX
-      if( !xbeeZB.error_TX )
-      {
-          //XBee.println("ok");
-          USB.println("End device sends out a challenge ok");
-          Utils.setLED(LED1, LED_ON);   // Ok, blink green LED
-          delay(500);
-          Utils.setLED(LED1, LED_OFF);
-          error = false;
-      }
-      else
-      { 
-          USB.println("challenge transmission error\n\n");
-          Utils.setLED(LED0, LED_ON);   // Error, blink red LED
-          delay(500);
-          Utils.setLED(LED0, LED_OFF);
-          error = true;
-      }
-      free(paq_sent);
-      paq_sent=NULL;
-      return error;
-} 
 
 uint8_t CommUtils::sendMessage(uint8_t * destination, const char * message)
 {
@@ -604,7 +565,7 @@ uint8_t CommUtils::sendMessage(uint8_t * destination, const char * message)
       }
       else
       { 
-			error = 1;
+			error = xbeeZB.error_TX;
 	  		#ifdef COMM_DEBUG
 		        USB.println("\nchallenge transmission error\n");
 				Utils.setLED(LED0, LED_ON);   // If transmission error, blink red LED
@@ -636,7 +597,7 @@ uint8_t CommUtils::sendMessage(uint8_t * destination, uint8_t type, const char *
       paq_sent = (packetXBee*) calloc(1,sizeof(packetXBee)); 
 	  
 	  #ifdef NODE_MEMORY_DEBUG
-			USB.print("FREE MEMORY = "); USB.println(freeMemory());
+			USB.print("FREE MEM"); USB.print("send"); USB.println(freeMemory());
 	  #endif
 	  
       paq_sent->mode=UNICAST;
@@ -654,6 +615,7 @@ uint8_t CommUtils::sendMessage(uint8_t * destination, uint8_t type, const char *
 	  		#ifdef TIME_DEBUG
 				USB.print("start sending"); USB.println( millis() );
 			#endif
+			
       xbeeZB.sendXBee(paq_sent);
 	  
 	  	  	#ifdef TIME_DEBUG
@@ -676,7 +638,7 @@ uint8_t CommUtils::sendMessage(uint8_t * destination, uint8_t type, const char *
       }
       else
       { 
-			error = 1;
+			error = xbeeZB.error_TX;
 	  		#ifdef COMM_DEBUG
 		        USB.println("challenge transmission error\n\n");
 				Utils.setLED(LED0, LED_ON);   // If transmission error, blink red LED
@@ -687,6 +649,11 @@ uint8_t CommUtils::sendMessage(uint8_t * destination, uint8_t type, const char *
 	  
       free(paq_sent);
       paq_sent=NULL;
+	  
+			#ifdef NODE_MEMORY_DEBUG
+			USB.print("FREE MEM"); USB.print("send"); USB.println(freeMemory());
+			#endif
+	  
       return error;
 }
 

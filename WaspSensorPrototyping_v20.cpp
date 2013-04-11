@@ -19,6 +19,8 @@
  *  Design:		David Gascón
  *  Implementation:	Alberto Bielsa, Manuel Calahorra
  */
+
+#ifdef USE_WASP_SENSOR_PROTOTYPING_V20 
  
 #ifndef __WPROGRAM_H__
 	#include <WaspClasses.h>
@@ -122,3 +124,5 @@ float WaspSensorPrototyping_v20::readAnalogSensor(uint8_t pin)
 
 
 WaspSensorPrototyping_v20 SensorProtov20=WaspSensorPrototyping_v20();
+
+#endif

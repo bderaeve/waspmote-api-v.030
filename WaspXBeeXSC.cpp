@@ -19,7 +19,7 @@
  *  Design:		David Gascón
  *  Implementation:	Alberto Bielsa, Yuri Carmona
  */
- 
+ #ifdef USE_WASP_XBEE_XSC
 
 #ifndef __WPROGRAM_H__
 	#include "WaspClasses.h"
@@ -2441,3 +2441,5 @@ uint8_t WaspXBeeXSC::check()
 }
 
 WaspXBeeXSC	xbeeXSC = WaspXBeeXSC();
+
+#endif

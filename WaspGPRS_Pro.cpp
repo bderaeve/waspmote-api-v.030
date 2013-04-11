@@ -19,7 +19,7 @@
  *  Design:		David Gascón
  *  Implementation:	Alejandro Gállego
  */
-  
+#ifdef USE_WASP_GPRS_PRO  
 
 #ifndef __WPROGRAM_H__
 //  #include <WProgram.h>
@@ -3555,3 +3555,4 @@ int8_t WaspGPRS_Pro::GetDataManually(uint16_t data_length, uint8_t id){
 
 WaspGPRS_Pro GPRS_Pro = WaspGPRS_Pro();
 
+#endif

@@ -28,6 +28,8 @@
 
 // Constructors ////////////////////////////////////////////////////////////////
 
+
+#ifdef USE_WASP_SENSOR_CITIES
 WaspSensorCities::WaspSensorCities()
 {
 	pinMode(DIGITAL1,OUTPUT);
@@ -536,3 +538,5 @@ void WaspSensorCities::setDigipot0(uint8_t address, float value)
 
 
 WaspSensorCities SensorCities=WaspSensorCities();
+
+#endif

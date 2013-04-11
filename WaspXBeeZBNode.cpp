@@ -304,6 +304,7 @@ void WaspXBeeZBNode::setPhysicalSensorMask(uint8_t mask[2])
 
 
 
+
 void WaspXBeeZBNode::setPhysicalSensorMaskLength()
 {
 	physicalSensorMaskLength = getMaskLength(physicalSensorMask);
@@ -476,6 +477,10 @@ void WaspXBeeZBNode::hibernate()
 	///////////////////////////////////////
 	// 1. Store operating mode
 	///////////////////////////////////////		
+	
+	PowerPlan savedPP = (PowerPlan) Utils.readEEPROM(POWERPLAN);
+	savedPP == powerPlan ? : storeValue(POWERPLAN, powerPlan);
+	
 	//storeValue(POWERPLAN, powerPlan);  only if different from current
 	
 	if(defaultOperation)

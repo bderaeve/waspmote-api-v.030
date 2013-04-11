@@ -20,6 +20,7 @@
  *  Implementation:	Alberto Bielsa, David Cuartielles
  */
  
+#ifdef USE_WASP_SENSOR_SMART_V20
 
 #ifndef __WPROGRAM_H__
   #include "WaspClasses.h"
@@ -334,3 +335,5 @@ float	WaspSensorSmart_v20::readValue(uint16_t sensor, uint8_t type)
 
 
 WaspSensorSmart_v20 SensorSmartv20=WaspSensorSmart_v20();
+
+#endif

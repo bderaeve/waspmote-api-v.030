@@ -29,10 +29,6 @@ SensorUtils::SensorUtils()
 		measuringInterval[i] = xbeeZB.defaultTime2WakeInt;
 }
 
-void SensorUtils::testPrinting()
-{
-	USB.print("testSensUtils\n");
-}
 	
 /*********************************************************************************************************
   *

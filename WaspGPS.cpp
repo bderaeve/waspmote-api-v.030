@@ -19,7 +19,7 @@
  *  Design:		David Gascón
  *  Implementation:	Alberto Bielsa, David Cuartielles, Mikal Hart
  */
-  
+#ifdef USE_WASP_GPS 
 
 /******************************************************************************
  * Includes
@@ -1461,3 +1461,4 @@ for (int i = 0; i < GPS_BUFFER_SIZE; i++) inBuffer[i] = '\0';
 // Preinstantiate Objects //////////////////////////////////////////////////////
 
 WaspGPS GPS = WaspGPS();
+#endif

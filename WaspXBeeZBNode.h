@@ -30,7 +30,7 @@
 //#define NODE_MEMORY_DEBUG
 //#define NODE_TIME_DEBUG
 //#define POWER_SAVER_DEBUG
-
+#define ADD_NODE_REQ_DEBUG
 //! Determines if all the different sleep times could be calculated and stored
 /*! or wether the reserved memory is too small and the next values should be 
 /*  calculated once the previous ones may be overwritten.

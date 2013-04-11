@@ -19,7 +19,7 @@
  *  Design:		David Gascón
  *  Implementation:	David Cuartielles, Alberto Bielsa
  */
-  
+#ifdef USE_WASP_ACC  
 
 #ifndef __WPROGRAM_H__
   #include "WaspClasses.h"
@@ -654,3 +654,4 @@ int16_t WaspACC::writeRegister(uint8_t address, uint8_t val)
 
 WaspACC ACC = WaspACC();
 
+#endif

@@ -19,7 +19,7 @@
  *  Design:		David Gascón
  *  Implementation:	Alberto Bielsa, David Cuartielles
  */
-  
+#ifdef USE_WASP_GPRS  
 
 #ifndef __WPROGRAM_H__
 //  #include <WProgram.h>
@@ -2416,3 +2416,4 @@ int8_t WaspGPRS::getIMSI()
 
 WaspGPRS GPRS = WaspGPRS();
 
+#endif

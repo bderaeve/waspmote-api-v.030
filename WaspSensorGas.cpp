@@ -19,7 +19,7 @@
  *  Design:		David Gascón
  *  Implementation:	Alberto Bielsa, Manuel Calahorra
  */
- 
+#ifdef USE_WASP_SENSOR_GAS	 
 
 #ifndef __WPROGRAM_H__
 	#include "WaspClasses.h"
@@ -323,3 +323,5 @@ uint16_t WaspSensorGas::pulse(uint16_t sensor)
 }
 
 WaspSensorGas SensorGas=WaspSensorGas();
+
+#endif

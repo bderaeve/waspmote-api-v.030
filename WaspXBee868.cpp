@@ -19,7 +19,7 @@
  *  Design:		David Gascón
  *  Implementation:	Alberto Bielsa, Yuri Carmona
  */
-
+#ifdef USE_WASP_XBEE868
 
 #ifndef __WPROGRAM_H__
 	#include "WaspClasses.h"
@@ -459,3 +459,5 @@ uint8_t WaspXBee868::getACKerrors()
 }
 
 WaspXBee868	xbee868 = WaspXBee868();
+
+#endif

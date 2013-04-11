@@ -91,7 +91,11 @@ void WaspRTC::begin()
  */
 void WaspRTC::close()
 {
+	#ifdef USE_WASP_ACC
 	if( Wire.I2C_ON && !ACC.isON) PWR.closeI2C();
+	#enlif
+	if( Wire.I2C_ON) PWR.closeI2C();
+	#endif
 }
 
 
@@ -754,7 +758,7 @@ char* WaspRTC::getTime()
 	return getTimestamp();
 }
 
-
+#ifdef USE_WASP_GPS
 /* setTimeFromGPS() - sets time and date from the GPS to the RTC. GPS has to be initialized first and got the time/date
  *
  * It sets time and date from the GPS to the RTC. GPS has to be initialized first and got the time/date
@@ -779,7 +783,7 @@ void WaspRTC::setTimeFromGPS()
   
 	RTC.setTime(year, month, day, 1, hour, minute, second);
 }
-
+#endif
 
 /* getTemperature() - gets temperature
  *

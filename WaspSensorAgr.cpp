@@ -20,6 +20,7 @@
  *  Implementation:	Alberto Bielsa, Manuel Calahorra, Yuri Carmona
  */
 
+#ifdef USE_WASP_SENSOR_AGR
 
 #ifndef __WPROGRAM_H__
 #include "WaspClasses.h"
@@ -813,3 +814,6 @@ float WaspSensorAgr::sencera_conversion(int readValue)
 }
 
 WaspSensorAgr SensorAgr=WaspSensorAgr();
+
+
+#endif

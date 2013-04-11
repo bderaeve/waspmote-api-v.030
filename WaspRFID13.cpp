@@ -21,6 +21,7 @@
  *  Design:				David Gascón
  *  Implementation:		Ahmad Saad, Javier Solobera
  */
+#ifdef USE_WASP_RFID
 
 #ifndef __WPROGRAM_H__
 	#include "WaspClasses.h"
@@ -885,3 +886,4 @@
 	
 WaspRFID13 RFID13=WaspRFID13();
 
+#endif

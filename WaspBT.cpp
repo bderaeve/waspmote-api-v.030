@@ -19,7 +19,7 @@
  *  Design:		David Gascón
  *  Implementation:	Alberto Bielsa, Manuel Calahorra, Yuri Carmona
  */
-
+#ifdef USE_WASP_BT
 
 #ifndef __WPROGRAM_H__
 #include "WaspClasses.h"
@@ -762,3 +762,5 @@ uint8_t WaspBT::createStreamConnection()
 
 
 WaspBT BT=WaspBT();
+
+#endif

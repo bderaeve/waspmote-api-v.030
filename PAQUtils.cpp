@@ -292,11 +292,16 @@ void PAQUtils::escapeZerosInPacketData(char * content)
 		return error;
 	}
 	
+	
 
 	uint8_t Add_Node_Request(packetXBee * receivedPaq)  // APP_ID = 1
 	{
 		uint8_t error = 2;
 		uint8_t receivedPhysicalMask[2]; 
+			#ifdef ADD_NODE_REQ_DEBUG
+				USB.println("ADD_NODE_REQ");
+				uint16_t tes;
+			#endif
 		
 		// Save the origin address
 		PackUtils.getPacketOriginAddress(receivedPaq);
@@ -304,7 +309,21 @@ void PAQUtils::escapeZerosInPacketData(char * content)
 		// SET PHYSICAL MASK
 		receivedPhysicalMask[0] = receivedPaq->data[0];
 		receivedPhysicalMask[1] = receivedPaq->data[1];
+			#ifdef ADD_NODE_REQ_DEBUG
+				USB.println("rec mask = ");
+				USB.println( (char) receivedPaq->data[0]);
+				USB.println( (char) receivedPaq->data[1]);
+				//tes = toUint16_t( receivedPaq->data[0], receivedPaq->data[1] );
+				//USB.print( tes );
+				USB.print("\nend\n");
+				USB.print( (  (unsigned char) receivedPaq->data[0])*256 )  ;//+ (unsigned char) receivedPhysicalMask[1] );
+			#endif
 		xbeeZB.setPhysicalSensorMask(receivedPhysicalMask);
+			#ifdef ADD_NODE_REQ_DEBUG
+				USB.println("xbeeZB mask = ");
+				USB.print( (int) xbeeZB.physicalSensorMask );
+				USB.print("\n");
+			#endif
 		xbeeZB.setActiveSensorMask(1, BATTERY);
 		//SET NODE ID  (not receiving this atm)
 		//xbeeZB.setNodeIdentifier( itoa(receivedPaq->data[2], xbeeZB.nodeID, 10) );
@@ -326,9 +345,27 @@ void PAQUtils::escapeZerosInPacketData(char * content)
 	}
 	
 	
+uint16_t toUint16_t(unsigned char & high, unsigned char & low)
+{
+	#ifdef ADD_NODE_REQ_DEBUG
+		USB.println("toUint16");
+		USB.println( (char) high );
+		USB.println( (char) low );
+	#endif
+	
+	return  ( (uint16_t) ((  high ) * 256 ) + ( low) );
+}	
+	
+	
+	
+	
 	uint8_t Mask_Request(packetXBee * receivedPaq)  // APP_ID = 3
 	{
 		uint8_t error = 2;
+		
+			#ifdef MASK_REQ_DEBUG
+				USB.println("ADD_NODE_REQ");
+			#endif
 		
 		PackUtils.getPacketOriginAddress(receivedPaq);
 		

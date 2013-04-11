@@ -19,7 +19,7 @@
  *  Design:		David Gascón
  *  Implementation:	Alberto Bielsa, David Cuartielles
  */
-  
+#ifdef USE_WASP_BT  
  
 #ifndef WaspBTConstants_h
 #define WaspBTConstants_h
@@ -72,5 +72,7 @@
 #define	BT_AT_DISCONNECT	"AT+JSDR"
 #define	BT_AT_STREAM_CONN	"AT+JSCR"
 
+
+#endif
 
 #endif
