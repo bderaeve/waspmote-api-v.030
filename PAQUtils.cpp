@@ -283,80 +283,72 @@ void PAQUtils::escapeZerosInPacketData(char * content)
 	uint8_t NotInUse(packetXBee * receivedPaq)  // APP_ID = 0 - Should never be received
 	{
 		uint8_t error = 2;
+		PackUtils.packetSize = 1;
+		PackUtils.packetData[0] = NODE_RECEIVED_INVALID_PACKET_OF_TYPE_0_DONT_USE;
+		char * contentToSend = (char *) calloc(PackUtils.packetSize + 1, sizeof(char));
+		PackUtils.escapeZerosInPacketData(contentToSend);
 		
-		memset(PackUtils.packetData, 0, MAX_DATA);
-		sprintf(PackUtils.packetData, "Node ' %s ' received an invalid packet of type 0: DONT_USE", xbeeZB.nodeID);
-		
-		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, PackUtils.packetData);
-		
+		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, SEND_ERROR, contentToSend);
+		free(contentToSend);
+		contentToSend = NULL;
 		return error;
 	}
-	
 	
 
 	uint8_t Add_Node_Request(packetXBee * receivedPaq)  // APP_ID = 1
 	{
 		uint8_t error = 2;
-		uint8_t receivedPhysicalMask[2]; 
 			#ifdef ADD_NODE_REQ_DEBUG
 				USB.println("ADD_NODE_REQ");
 				uint16_t tes;
 			#endif
-		
-		// Save the origin address
-		PackUtils.getPacketOriginAddress(receivedPaq);
 	
-		// SET PHYSICAL MASK
-		receivedPhysicalMask[0] = receivedPaq->data[0];
-		receivedPhysicalMask[1] = receivedPaq->data[1];
+		// 1. Set the physical mask
 			#ifdef ADD_NODE_REQ_DEBUG
 				USB.println("rec mask = ");
-				USB.println( (char) receivedPaq->data[0]);
-				USB.println( (char) receivedPaq->data[1]);
-				//tes = toUint16_t( receivedPaq->data[0], receivedPaq->data[1] );
-				//USB.print( tes );
-				USB.print("\nend\n");
-				USB.print( (  (unsigned char) receivedPaq->data[0])*256 )  ;//+ (unsigned char) receivedPhysicalMask[1] );
+				tes = toUint16_t( receivedPaq->data[0], receivedPaq->data[1] );
+				USB.println( (int ) tes );
 			#endif
-		xbeeZB.setPhysicalSensorMask(receivedPhysicalMask);
+		xbeeZB.setPhysicalSensorMask( (uint8_t *) receivedPaq->data);
 			#ifdef ADD_NODE_REQ_DEBUG
-				USB.println("xbeeZB mask = ");
+				USB.print("xbeeZB.phyMask = ");
 				USB.print( (int) xbeeZB.physicalSensorMask );
 				USB.print("\n");
 			#endif
-		xbeeZB.setActiveSensorMask(1, BATTERY);
-		//SET NODE ID  (not receiving this atm)
+		
+		// 2. Set received mask as active sensor mask
+		xbeeZB.setActiveSensorMask(xbeeZB.physicalSensorMask);
+		
+		// 3. Set Node Identifier  (not receiving this atm)
 		//xbeeZB.setNodeIdentifier( itoa(receivedPaq->data[2], xbeeZB.nodeID, 10) );
 		
-		//Send answer back:
-		error = PackUtils.sendMask(PackUtils.originAddress, ADD_NODE_RES, xbeeZB.physicalSensorMask);
+		// 4. Send answer back:
+		PackUtils.packetSize = 2;
+		PackUtils.setPacketMask(xbeeZB.physicalSensorMask);
+		
+		char * contentToSend = (char *) calloc(PackUtils.packetSize + 1, sizeof(char));
+		PackUtils.escapeZerosInPacketData(contentToSend);
+		
+		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, ADD_NODE_RES, contentToSend);
+		
+		free(contentToSend);
+		contentToSend = NULL;
 		
 		return error;
 	}
 	uint8_t Add_Node_Response(packetXBee * receivedPaq) // APP_ID = 2 - Should never be received
 	{
 		uint8_t error = 2;
+		PackUtils.packetSize = 1;
+		PackUtils.packetData[0] = NODE_RECEIVED_INVALID_PACKET_OF_TYPE_2_ADD_NODE_RES;
+		char * contentToSend = (char *) calloc(PackUtils.packetSize + 1, sizeof(char));
+		PackUtils.escapeZerosInPacketData(contentToSend);
 		
-		sprintf(PackUtils.packetData, "Node ' %s ' %s%d", xbeeZB.nodeID, "received an invalid packet of type ",2);
-		
-		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, PackUtils.packetData);
-		
+		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, SEND_ERROR, contentToSend);
+		free(contentToSend);
+		contentToSend = NULL;
 		return error;
 	}
-	
-	
-uint16_t toUint16_t(unsigned char & high, unsigned char & low)
-{
-	#ifdef ADD_NODE_REQ_DEBUG
-		USB.println("toUint16");
-		USB.println( (char) high );
-		USB.println( (char) low );
-	#endif
-	
-	return  ( (uint16_t) ((  high ) * 256 ) + ( low) );
-}	
-	
-	
 	
 	
 	uint8_t Mask_Request(packetXBee * receivedPaq)  // APP_ID = 3
@@ -364,9 +356,10 @@ uint16_t toUint16_t(unsigned char & high, unsigned char & low)
 		uint8_t error = 2;
 		
 			#ifdef MASK_REQ_DEBUG
-				USB.println("ADD_NODE_REQ");
+				USB.println("MASK_REQ");
 			#endif
 		
+		/* NOT POSSIBLE IF 0 IS USED TO ADDRESS THE GATEWAY 
 		PackUtils.getPacketOriginAddress(receivedPaq);
 		
 		// Only gateway is allowed to request a nodes physical mask
@@ -383,17 +376,31 @@ uint16_t toUint16_t(unsigned char & high, unsigned char & low)
 			sprintf(PackUtils.packetData, "Node ' %d ' received an unauthorized request for his physical sensor mask", xbeeZB.nodeID);
 			error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, PackUtils.packetData);	
 		}
+		*/
+		PackUtils.packetSize = 2;
+		PackUtils.setPacketMask(xbeeZB.physicalSensorMask);
+		
+		char * contentToSend = (char *) calloc(PackUtils.packetSize + 1, sizeof(char));
+		PackUtils.escapeZerosInPacketData(contentToSend);
+		
+		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, MASK_RES, contentToSend);
+		
+		free(contentToSend);
+		contentToSend = NULL;		
+		
 		return error;
 	}
 	uint8_t Mask_Response(packetXBee * receivedPaq)  // APP_ID = 4 - Should never be received
 	{
 		uint8_t error = 2;
+		PackUtils.packetSize = 1;
+		PackUtils.packetData[0] = NODE_RECEIVED_INVALID_PACKET_OF_TYPE_4_MASK_RES;
+		char * contentToSend = (char *) calloc(PackUtils.packetSize + 1, sizeof(char));
+		PackUtils.escapeZerosInPacketData(contentToSend);
 		
-		memset(PackUtils.packetData, 0, MAX_DATA);
-		sprintf(PackUtils.packetData, "Node ' %s ' %s%d", xbeeZB.nodeID, "received an invalid packet of type ",4);
-		
-		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, PackUtils.packetData);
-		
+		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, SEND_ERROR, contentToSend);
+		free(contentToSend);
+		contentToSend = NULL;
 		return error;
 	}
 	
@@ -401,44 +408,48 @@ uint16_t toUint16_t(unsigned char & high, unsigned char & low)
 	uint8_t Change_Node_Frequency_Request(packetXBee * receivedPaq) // APP_ID = 5
 	{
 		uint8_t error = 2;
-		uint16_t receivedTime = 0;
 		
-		
-		receivedTime = ( (unsigned int) receivedPaq->data[0]*256) + receivedPaq->data[1];
-		if( !xbeeZB.setNewDefaultTime2Sleep( receivedTime ) )
+		if( !xbeeZB.setNewDefaultTime2Sleep( toUint16_t(receivedPaq->data ) ) )
 		{
 			//send answer
 			PackUtils.packetData[0] = xbeeZB.defaultTime2WakeInt/256;
 			PackUtils.packetData[1] = xbeeZB.defaultTime2WakeInt%256;
-			
 			PackUtils.packetSize = 2;  //needed in escapZeros function
-			char * content = (char *) calloc(PackUtils.packetSize*2 + 1, sizeof(char));
+			char * contentToSend = (char *) calloc(PackUtils.packetSize + 1, sizeof(char));
+			PackUtils.escapeZerosInPacketData(contentToSend);
 			
-			PackUtils.escapeZerosInPacketData(content);
-			error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, CH_NODE_FREQ_RES, content); 	
+			error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, CH_NODE_FREQ_RES, contentToSend); 	
 			
-			free(content);
-			content = NULL;
+			free(contentToSend);
+			contentToSend = NULL;
 		}
 		else
 		{
 			//send error
-			memset(PackUtils.packetData, 0, MAX_DATA);
-			sprintf(PackUtils.packetData, "Node ' %d ' received an invalid new default sleep time", xbeeZB.nodeID);
-			error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, PackUtils.packetData);	
+			PackUtils.packetSize = 1;
+			PackUtils.packetData[0] = NODE_RECEIVED_INVALID_NEW_DEFAULT_SLEEP_TIME;
+			char * contentToSend = (char *) calloc(PackUtils.packetSize + 1, sizeof(char));
+			PackUtils.escapeZerosInPacketData(contentToSend);
+			
+			error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, SEND_ERROR, contentToSend);
+			
+			free(contentToSend);
+			contentToSend = NULL;
 		}
 		return error;	
 	}
 	uint8_t Change_Node_Frequency_Response(packetXBee * receivedPaq) // APP_ID = 6 - Should never be received
 	{
 		uint8_t error = 2;
+		PackUtils.packetSize = 1;
+		PackUtils.packetData[0] = NODE_RECEIVED_INVALID_PACKET_OF_TYPE_6_CH_NODE_FREQ_RES;
+		char * contentToSend = (char *) calloc(PackUtils.packetSize + 1, sizeof(char));
+		PackUtils.escapeZerosInPacketData(contentToSend);
 		
-		memset(PackUtils.packetData, 0, MAX_DATA);
-		sprintf(PackUtils.packetData, "Node ' %s ' %s%d", xbeeZB.nodeID, "received an invalid packet of type ",6);
-		
-		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, PackUtils.packetData);
-		
-		return error;	
+		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, SEND_ERROR, contentToSend);
+		free(contentToSend);
+		contentToSend = NULL;
+		return error;
 	}
 	
 	
@@ -466,13 +477,15 @@ uint16_t toUint16_t(unsigned char & high, unsigned char & low)
 	uint8_t Change_Sensor_Frequency_Response(packetXBee * receivedPaq)  // APP_ID = 8 - Should never be received	
 	{
 		uint8_t error = 2;
+		PackUtils.packetSize = 1;
+		PackUtils.packetData[0] = NODE_RECEIVED_INVALID_PACKET_OF_TYPE_8_CH_SENS_FREQ_RES;
+		char * contentToSend = (char *) calloc(PackUtils.packetSize + 1, sizeof(char));
+		PackUtils.escapeZerosInPacketData(contentToSend);
 		
-		memset(PackUtils.packetData, 0, MAX_DATA);
-		sprintf(PackUtils.packetData, "Node ' %s ' %s%d", xbeeZB.nodeID, "received an invalid packet of type ",8);
-		
-		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, PackUtils.packetData);
-		
-		return error;	
+		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, SEND_ERROR, contentToSend);
+		free(contentToSend);
+		contentToSend = NULL;
+		return error;
 	}
 	
 	
@@ -530,13 +543,15 @@ uint16_t toUint16_t(unsigned char & high, unsigned char & low)
 	uint8_t IO_Data(packetXBee *)  // APP_ID = 10 - Should never be received
 	{
 		uint8_t error = 2;
+		PackUtils.packetSize = 1;
+		PackUtils.packetData[0] = NODE_RECEIVED_INVALID_PACKET_OF_TYPE_10_IO_DATA;
+		char * contentToSend = (char *) calloc(PackUtils.packetSize + 1, sizeof(char));
+		PackUtils.escapeZerosInPacketData(contentToSend);
 		
-		memset(PackUtils.packetData, 0, MAX_DATA);
-		sprintf(PackUtils.packetData, "Node ' %s ' %s%d", xbeeZB.nodeID, "received an invalid packet of type ",10);
-		
-		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, PackUtils.packetData);
-		
-		return error;			
+		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, SEND_ERROR, contentToSend);
+		free(contentToSend);
+		contentToSend = NULL;
+		return error;		
 	}
 	
 	//In normal operation a libelium node should never receive any error messages!
@@ -563,13 +578,15 @@ uint16_t toUint16_t(unsigned char & high, unsigned char & low)
 	uint8_t Send_Error(packetXBee * receivedPaq) // APP_ID = 12 - Should never be received
 	{
 		uint8_t error = 2;
+		PackUtils.packetSize = 1;
+		PackUtils.packetData[0] = NODE_RECEIVED_INVALID_PACKET_OF_TYPE_12_SEND_ERROR;
+		char * contentToSend = (char *) calloc(PackUtils.packetSize + 1, sizeof(char));
+		PackUtils.escapeZerosInPacketData(contentToSend);
 		
-		memset(PackUtils.packetData, 0, MAX_DATA);
-		sprintf(PackUtils.packetData, "Node ' %s ' %s%d", xbeeZB.nodeID, "received an invalid packet of type ",12);
-		
-		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, PackUtils.packetData);
-		
-		return error;	
+		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, SEND_ERROR, contentToSend);
+		free(contentToSend);
+		contentToSend = NULL;
+		return error;		
 	}
 
 

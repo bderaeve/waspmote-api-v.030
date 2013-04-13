@@ -14,6 +14,7 @@
 StoreSensorData * Saver[5] = { &saveTemperature, &saveHumidity, &savePressure,
 			&saveBattery, &saveCO2};
 
+			
 SensorUtils::SensorUtils()
 {
 	reader[0] = &SensorUtils::measureTemperature;

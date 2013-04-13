@@ -485,11 +485,6 @@ uint8_t CommUtils::receiveMessages()
 									USB.print(xbeeZB.packet_finished[xbeeZB.pos-1]->data[f],BYTE);
 									
 							}
-							USB.print("\n\n");
-							USB.print(xbeeZB.packet_finished[xbeeZB.pos-1]->data[0],BYTE);
-							USB.print(xbeeZB.packet_finished[xbeeZB.pos-1]->data[1],BYTE);
-							USB.print( (char) xbeeZB.packet_finished[xbeeZB.pos-1]->data[0]);
-							USB.print( (char) xbeeZB.packet_finished[xbeeZB.pos-1]->data[1]);
 						#endif  
 						
 						#ifdef NODE_MEMORY_DEBUG
@@ -500,6 +495,7 @@ uint8_t CommUtils::receiveMessages()
 							USB.print("ID = "); USB.println( (int) xbeeZB.packet_finished[xbeeZB.pos-1]->packetID);
 						#endif
 						
+						/// HERE THE PACKETS ARE TREATED ///
 						(*myTreatPacket[xbeeZB.packet_finished[xbeeZB.pos-1]->packetID])
 							(xbeeZB.packet_finished[xbeeZB.pos-1]);
 						

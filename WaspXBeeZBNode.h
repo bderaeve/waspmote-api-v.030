@@ -25,12 +25,13 @@
  ******************************************************************************/
 //#define NODE_DEBUG
 //#define HIBERNATE_DEBUG
-//#define HIBERNATE_DEBUG_V2
-//#define MATH_DEBUG
+#define HIBERNATE_DEBUG_V2
+#define MATH_DEBUG
+//#define MATH_DEBUG_EXTENDED
 //#define NODE_MEMORY_DEBUG
 //#define NODE_TIME_DEBUG
 //#define POWER_SAVER_DEBUG
-#define ADD_NODE_REQ_DEBUG
+//#define ADD_NODE_REQ_DEBUG
 //! Determines if all the different sleep times could be calculated and stored
 /*! or wether the reserved memory is too small and the next values should be 
 /*  calculated once the previous ones may be overwritten.
@@ -40,6 +41,9 @@
 
 typedef enum {HIGHPERFORMANCE, POWERSAVER} 
 	PowerPlan; 
+
+typedef enum {SLEEP, HIBERNATE}
+	SleepMode;
 
 
 
@@ -85,14 +89,17 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		
 		
 		void setGatewayMacAddress(uint8_t[8]);
-		
+
+/*********************************************************************************************************
+ *	NODE SENSOR BOARD LAYOUT FUNCTIONALITY
+ ********************************************************************************************************/			
 
 		//! It allows to remotely set a sensor mask to a node
 		/*! This sensor mask must correspond to the physical layout of the node and is
 		 *! not supposed to change!
 		 *  \@post: physicalSensorMaskLength will be set
 		 */
-		void setPhysicalSensorMask(uint8_t[2]);
+		void setPhysicalSensorMask(uint8_t *);
 		
 		
 		//! It allows an installer to set a sensor mask of active sensors to a node via libelium-IDE
@@ -116,29 +123,49 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		/*! This sensor mask serves to indicate which installed sensors should be measured
 		 *  \@post: activeSensorMaskLength will be set
 		 */
-		void setActiveSensorMask(uint8_t[2]);
-		
-
-		
-		
+		void setActiveSensorMask(uint8_t *);
+			
 		uint8_t getMaskLength(uint16_t);
 		uint8_t getNrActiveSensors(uint16_t);
 
 		uint8_t disableSensors(uint16_t *);
 		void printSensorMask(uint16_t);
 		
+/*********************************************************************************************************
+ *	DEEPSLEEP / HIBERNATE FUNCTIONALITY
+ ********************************************************************************************************/
+ 
+		//! Use this function if you want to set a time2sleep offset via the Waspmote-IDE
+		/*!	\param:	SleepMode: HIBERNATE or DEEPSLEEP
+		 *  \param: time2sleep: 1 = 10 seconds
+		 */
+		void enterLowPowerMode(SleepMode, uint16_t);
 		
-		
-		//! Node will go into hibernate for 'xbeeZB.defaultTime2Wake'
+		//! Node will go into hibernate until the RTC alarm goes off. This alarm must have been set
+		//! on beforehand!  (normally this is done immediately after waking up in the ifHibernateInterrupt)
 		void hibernate();
+
 		
+/*********************************************************************************************************
+ *	VARIABLE TIMING FUNCTIONALITY
+ ********************************************************************************************************/
+ 
+		//! Set a new standard time2sleep for the node
+		/*! \@post: all sensors in the active sensor mask will be measured and send
+		 *			at this sleep interval
+		 *	\@post: defaultOperation = true
+		 */		
 		uint8_t setNewDefaultTime2Sleep(uint16_t);
 		
-		
-///CHANGE SENSOR FREQUENCIES
-		
+		//! Change one of more sensor's measuring interval. If the received sensor interval time
+		/*! is zero the sensor will be removed from the active sensor mask
+		 *	\@post: if not all sensors operate at the same measuring interval defaultOperation = false
+		 *  \@post: if !defaultOperation setNewDifferentSleepTimes() is called
+		 */
 		uint8_t changeSensorFrequencies(char *);
 		
+		//! This function prepares the values for the algorithm which determines the next times 2 sleep
+		//! and then calls that function.  
 		uint8_t setNewDifferentSleepTimes();
 		
 		void createAndSaveNewTime2SleepArray(uint16_t *);
@@ -186,13 +213,21 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		uint16_t defaultTime2WakeInt;   
 		char defaultTime2WakeStr[18];		//"dd:hh:mm:ss"
 		
+		uint16_t * time2wValuesArray;
+		uint16_t lengthArray;
+		uint16_t * sensMultiplier;
+		
+		SleepMode sleepMode;
 		PowerPlan powerPlan;
 		
 
 		
-		// Defines if the node operates in default mode (one time2wake) or if
-		// individual sensors have different sleep time settings.
+		//! Defines if the node operates in default mode (one defaultTime2Wake) or if
+		/*! individual sensors have different sleep time settings.
+		 */
 		bool defaultOperation;
+		
+		
 		bool resetRTC;
 		bool eepromReadMode;  // Easy / Difficult
 		bool mustCalculateNextTimes;
@@ -216,6 +251,8 @@ int compare(const void *, const void *);
 int gcd(int, int);
 uint16_t lcm(uint16_t, uint16_t);
 
+uint16_t toUint16_t(char &, char &);
+uint16_t toUint16_t(char *);
 
 extern WaspXBeeZBNode	xbeeZB;
 

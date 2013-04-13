@@ -29,6 +29,22 @@ typedef enum {DONT_USE, ADD_NODE_REQ, ADD_NODE_RES, MASK_REQ, MASK_RES, CH_NODE_
 	RECEIVE_ERROR, SEND_ERROR}
 	ApplicationIDs;
 
+typedef enum {	//INVALID PACKET RECEIVED
+				NODE_RECEIVED_INVALID_PACKET_OF_TYPE_0_DONT_USE,
+				NODE_RECEIVED_INVALID_PACKET_OF_TYPE_2_ADD_NODE_RES,
+				NODE_RECEIVED_INVALID_PACKET_OF_TYPE_4_MASK_RES,
+				NODE_RECEIVED_INVALID_PACKET_OF_TYPE_6_CH_NODE_FREQ_RES,
+				NODE_RECEIVED_INVALID_PACKET_OF_TYPE_8_CH_SENS_FREQ_RES,
+				NODE_RECEIVED_INVALID_PACKET_OF_TYPE_10_IO_DATA,
+				NODE_RECEIVED_INVALID_PACKET_OF_TYPE_12_SEND_ERROR,
+				//INVALID PACKET CONTENT RECEIVED
+				NODE_RECEIVED_INVALID_NEW_DEFAULT_SLEEP_TIME,
+				NODE_RECEIVED_EMPTY_SENSOR_MASK_IN_CH_SENS_FREQ_REQ,
+				NODE_HAS_NO_LONGER_ACTIVE_SENSORS,
+				NODE_HAD_AN_ERROR_IN_SET_NEW_DIFFERENT_SLEEP_TIMES
+			}
+	Errors;
+
 	
 //! Function pointers for the insertion of sensor data
 /*! Since the size of the data to insert is constant there's no reason to
@@ -47,7 +63,7 @@ uint8_t InsertPluvio(uint8_t *, char *);*/
 
 
 
-uint16_t toUint16_t(unsigned char &, unsigned char &);
+
 
 /*********************************************************************************************************
  *	STATIC FUNCTION POINTERS FOR HANDLING RECEIVED MESSAGES:
@@ -66,7 +82,7 @@ typedef uint8_t TreatData( packetXBee *);
 	/*!
 	 *	\param: a packetXBee which contains the physical sensormask
 	 *	\@post:	the physical sensor mask will be stored in 'WaspXBeeZBNode.h' and
-	 *			the node will send it back as confirmation.
+	 *			the node will send it back to the gateway as confirmation.
 	 */
 	extern uint8_t Add_Node_Request(packetXBee *);  // APP_ID = 1
 	//! SHOULD NEVER BE RECEIVED
