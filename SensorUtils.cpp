@@ -305,7 +305,7 @@ uint8_t SensorUtils::measureSensors(uint16_t mask)
 {
 	uint8_t error = 2;
 	uint16_t indicator = 1;
-	
+
 	if( mask == 0 )
 	{
 		error = 1;
@@ -315,8 +315,8 @@ uint8_t SensorUtils::measureSensors(uint16_t mask)
 	}
 	else if ( mask == BATTERY )
 	{
-		(this->*reader[3])();  // measure only battery,  don't turn on sensor board
-		error = 0;
+		(this->*reader[3])();  	/// measure only battery,  don't turn on sensor board
+		error = 0;				/// no time check since this is the only reason we came awake
 		#ifdef SENS_DEBUG
 			USB.println("*mask = BATTERY in uint8_t SensorUtils::measureSensors(uint16_t * mask)");
 		#endif
@@ -336,11 +336,34 @@ uint8_t SensorUtils::measureSensors(uint16_t mask)
 	
 		for(uint8_t i = 0; i < xbeeZB.activeSensorMaskLength; i++)
 		{
-			if(indicator & mask)
+			if(xbeeZB.defaultOperation)
 			{
-				(this->*reader[i])();  // read the corresponding sensor
+				if(indicator & mask)
+				{
+					(this->*reader[i])();  // read the corresponding sensor
+				}
+				indicator <<= 1;
 			}
-			indicator <<= 1;
+			else
+			{
+				if(xbeeZB.sleepMode == SLEEP || xbeeZB.sleepMode == DEEPSLEEP)
+				{			
+					/// Use posInArray
+					if(indicator & mask && RTCUt.RTCSecMinHourInt % xbeeZB.time2wValuesArray[xbeeZB.posInArray-1] == 0 )
+					{
+						(this->*reader[i])();  // read the corresponding sensor
+					}
+				}
+				else /// IF HIBERNATE:
+				{
+					if(indicator & mask && RTCUt.RTCSecMinHourInt % xbeeZB.storedTime == 0 )
+					{
+						(this->*reader[i])();  // read the corresponding sensor
+					}
+				
+				}
+				indicator <<= 1;
+			}
 		}
 		
 		SensorGasv20.OFF();
@@ -349,6 +372,8 @@ uint8_t SensorUtils::measureSensors(uint16_t mask)
 	
 	return error;
 }
+
+
 
 
 uint8_t SensorUtils::sensorValue2Chars(float value, SensorType type)
@@ -440,8 +465,10 @@ uint8_t SensorUtils::sensorValue2Chars(float value, SensorType type)
 		break;
 		
 		default:
+		{
 			error = 1;
 			USB.println("Went into default");
+		}
 			break;
 	}	
 	
@@ -453,6 +480,72 @@ uint8_t SensorUtils::sensorValue2Chars(float value, SensorType type)
   * DIFFERENT MEASURING INTERVALS
   *
   *******************************************************************************************************/
+uint8_t SensorUtils::registerSensorMeasuringIntervalTime(SensorType type, uint16_t time)
+{
+		#ifdef NODE_DEBUG_V2
+			USB.print("regSensTime = "); USB.println( (int) time );
+		#endif
+
+	uint8_t error = 2;
+	switch(type)
+	{	
+		case TEMPERATURE:	
+		{
+			measuringInterval[0] = time;
+			error = 0;
+		}
+			break;
+		case HUMIDITY:	
+		{
+			measuringInterval[1] = time;
+			error = 0;
+		}
+			break;		
+		case PRESSURE:	
+		{
+			measuringInterval[2] = time;
+			error = 0;
+		}		
+			break;
+		case BATTERY:	
+		{
+			measuringInterval[3] = time;
+			error = 0;
+		}	
+			break;		
+		case CO2:	
+		{
+			measuringInterval[4] = time;
+			error = 0;
+		}		
+			break;
+		case ANEMO:	
+		{
+			measuringInterval[5] = time;
+			error = 0;
+		}		
+			break;
+		case VANE:	
+		{
+			measuringInterval[6] = time;
+			error = 0;
+		}
+			break;
+		case PLUVIO:	
+		{
+			measuringInterval[7] = time;
+			error = 0;
+		}		
+			break;
+		default:
+			error = 1;
+			break;
+	}
+	
+	return error;
+}  
+  
+  
 void SensorUtils::saveSensorMeasuringIntervalTimes()
 {
 	uint16_t indicator = 1;
@@ -467,10 +560,34 @@ void SensorUtils::saveSensorMeasuringIntervalTimes()
 			xbeeZB.storeValue(pos_eeprom, measuringInterval[which_sensor]%256);
 			pos_eeprom++;
 			xbeeZB.storeValue(pos_eeprom, measuringInterval[which_sensor]/256);
-			pos_eeprom++;
 		}
 		else
 		{
+			pos_eeprom++;  //2nd ++ via for
+		}
+		
+		which_sensor++;
+		indicator <<= 1;
+	}
+}
+
+
+void SensorUtils::readSensorMeasuringIntervalTimesFromEEPROM()
+{
+	uint16_t indicator = 1;
+	uint16_t pos_eeprom = START_SENSOR_INTERVALS;
+	uint8_t which_sensor = 0;
+	
+	for(pos_eeprom; pos_eeprom<=END_SENSOR_INTERVALS; pos_eeprom++)
+	{
+		if(indicator & xbeeZB.activeSensorMask)
+		{
+			measuringInterval[which_sensor] = ( (uint16_t) (Utils.readEEPROM(pos_eeprom++) + 
+				Utils.readEEPROM(pos_eeprom)*256) );
+		}
+		else
+		{
+			measuringInterval[which_sensor] = 0;
 			pos_eeprom++;  //2nd ++ via for
 		}
 		

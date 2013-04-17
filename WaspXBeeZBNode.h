@@ -24,14 +24,24 @@
  * Definitions & Declarations
  ******************************************************************************/
 //#define NODE_DEBUG
+
+#define NODE_DEBUG_V2
+
 //#define HIBERNATE_DEBUG
 #define HIBERNATE_DEBUG_V2
+#define HIBERNATE_DEBUG_V3
 #define MATH_DEBUG
+//#define SLEEP_DEBUG
+//#define DEEPSLEEP_DEBUG
+//#define TEST_DIFFICULT_DEBUG
+
 //#define MATH_DEBUG_EXTENDED
 //#define NODE_MEMORY_DEBUG
 //#define NODE_TIME_DEBUG
 //#define POWER_SAVER_DEBUG
-//#define ADD_NODE_REQ_DEBUG
+
+#define ADD_NODE_REQ_DEBUG
+
 //! Determines if all the different sleep times could be calculated and stored
 /*! or wether the reserved memory is too small and the next values should be 
 /*  calculated once the previous ones may be overwritten.
@@ -39,10 +49,13 @@
 #define EASY 0		/// Stored in EEPROM_READ_MODE
 #define DIFFICULT 1
 
+typedef enum{END_DEVICE, ROUTER, COORDINATOR}
+	DeviceRole;
+
 typedef enum {HIGHPERFORMANCE, POWERSAVER} 
 	PowerPlan; 
 
-typedef enum {SLEEP, HIBERNATE}
+typedef enum {SLEEP, DEEPSLEEP, HIBERNATE, NONE}
 	SleepMode;
 
 
@@ -94,6 +107,20 @@ class WaspXBeeZBNode : public WaspXBeeZB
  *	NODE SENSOR BOARD LAYOUT FUNCTIONALITY
  ********************************************************************************************************/			
 
+		//! It saves the device role in global 'deviceRole' 
+		/*!   0=END_DEVICE,  1=ROUTER,  2=COORDINATOR
+		 *    It is supposed the device type is correctly set via X-CTU (function set)
+		 *    However, it gives the possibility to downgrade a Router to an End Device
+		 */
+		uint8_t getDeviceRole();
+		
+		//! It stores the device role in global 'deviceRole'
+		/*!   Assumes that the device type is correctly set via X-CTU 
+		 *		(Flash the XBee to different function set)
+		 *    0=END_DEVICE,  1=ROUTER,  2=COORDINATOR
+		 */
+		uint8_t setDeviceRole(DeviceRole);
+ 
 		//! It allows to remotely set a sensor mask to a node
 		/*! This sensor mask must correspond to the physical layout of the node and is
 		 *! not supposed to change!
@@ -112,11 +139,12 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		
 		//! It allows to set the active sensors to be measured at different times and to do this
 		//! setings via the libelium IDE
-		/*! The first argument must be the number of times (corresponding to the sensor) followed
-		 *! The next arguments must be of type int
-		 *  \pre: setActiveSensorMask() must be executed with the corresponding sensors
+		/*! The first argument must be the number of arguments (corresponding to the sensor) followed by
+		 *  The first sensor and its corresponding time
+		 *  The second sensor and its corresponding time
+		 *  ...
 		 */
-		uint8_t setActiveSensorTimes(uint16_t, ...);
+		uint8_t setActiveSensorMaskWithTimes(uint16_t, ...);
 		
 		
 		//! It allows to remotely set a sensor mask to a node
@@ -135,15 +163,26 @@ class WaspXBeeZBNode : public WaspXBeeZB
  *	DEEPSLEEP / HIBERNATE FUNCTIONALITY
  ********************************************************************************************************/
  
-		//! Use this function if you want to set a time2sleep offset via the Waspmote-IDE
+		//! Use this function if you want to set a time2sleep OFFSET via the Waspmote-IDE
+		//! So this function ignores variable sleep times
 		/*!	\param:	SleepMode: HIBERNATE or DEEPSLEEP
 		 *  \param: time2sleep: 1 = 10 seconds
 		 */
 		void enterLowPowerMode(SleepMode, uint16_t);
 		
+		//! Node will go into HIBERNATE / (DEEP) SLEEP for the time specified. 
+		/*! Function will check if node is in defaultOperatio or not.
+		 *  \@pre: This time must have been set on beforehand!!!!
+		 *  \@post: The next time2wake will be set in this function for SLEEP or DEEPSLEEP
+		 *	\@post: The next time2wake should be set in the hibernateInterrupt()
+		 */
+		void enterLowPowerMode(SleepMode);
+		
 		//! Node will go into hibernate until the RTC alarm goes off. This alarm must have been set
 		//! on beforehand!  (normally this is done immediately after waking up in the ifHibernateInterrupt)
 		void hibernate();
+		
+		void findNextTime2Wake(SleepMode);
 
 		
 /*********************************************************************************************************
@@ -166,7 +205,7 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		
 		//! This function prepares the values for the algorithm which determines the next times 2 sleep
 		//! and then calls that function.  
-		uint8_t setNewDifferentSleepTimes();
+		uint8_t setNewDifferentSleepTimes(bool);
 		
 		void createAndSaveNewTime2SleepArray(uint16_t *);
 		
@@ -175,7 +214,9 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		
 		uint16_t calculateMaxNrElementsForEEPROMArray(uint16_t *);
 		
-		
+		//! In case of SLEEP / DEEPSLEEP this function is used to determine the correct
+		//! position in 'time2wValuesArray'
+		void updatePosInArray();
 
 		void testPrinting();
 		
@@ -195,6 +236,7 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		//Addressing / Setup
 		uint8_t panid[8]; 
 		uint8_t GATEWAY_MAC[8]; 
+		uint8_t deviceRole;
 		uint8_t nrOfPanics;
 		
 		//Sensor
@@ -214,11 +256,19 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		char defaultTime2WakeStr[18];		//"dd:hh:mm:ss"
 		
 		uint16_t * time2wValuesArray;
-		uint16_t lengthArray;
+		uint16_t lengthArray;	/// NR OF TIME2WAIT ENTRIES IN TIME2WVALUESARRAY
+		uint16_t posInArray;  	/// USED BY SLEEP / DEEPSLEEP MODE INSTEAD OF EEROM
 		uint16_t * sensMultiplier;
+		uint16_t storedTime;
+		uint16_t LCM;
+		bool arrayReadMode;  	/// EASY / DIFFICULT
+		bool lastArrayContainedLCM; 
 		
-		SleepMode sleepMode;
-		PowerPlan powerPlan;
+		bool resetRTC;
+		
+		
+		SleepMode sleepMode;	/// SLEEP / DEEPSLEEP / HIBERNATE 
+		PowerPlan powerPlan;	/// MEASURE AND SEND OR ONLY MEASURE
 		
 
 		
@@ -228,13 +278,14 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		bool defaultOperation;
 		
 		
-		bool resetRTC;
-		bool eepromReadMode;  // Easy / Difficult
+
+
 		bool mustCalculateNextTimes;
 		bool lastArrayOfValues;
 		
 		uint8_t nrSleepTimes;
 		uint16_t * sleepTimes;
+
 		
 		//uint16_t * time2wValuesArray;
 		//uint16_t factor;

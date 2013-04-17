@@ -40,8 +40,9 @@ WaspXBeeZBNode::WaspXBeeZBNode()
 	defaultOperation = true;
 	powerPlan = HIGHPERFORMANCE;
 	sleepMode = HIBERNATE;
+	deviceRole = ROUTER;
 	
-	#ifdef HIBERNATE_DEBUG
+	#ifdef HIBERNATE_DEBUG_V3
 		//defaultTime2WakeInt = 1;   //"00:00:00:10"
 		defaultTime2WakeInt = 6;   //"00:00:01:00"
 	#else
@@ -96,73 +97,12 @@ void WaspXBeeZBNode::hibernateInterrupt()
 	readCoreVariablesFromEEPROM();
 	
 	///////////////////////////////////////////////
-	// 4. Check if RTC is ok
+	// 4. Find and set next time to wake
 	///////////////////////////////////////////////	
-	
-	/*
-	if( resetRTC ) 
-	{
-		RTCUt.reinitialize();
-		
-		if( eepromReadMode == DIFFICULT )
-			recalculateTimesFromBeginning();
-	}		
-	else if( mustCalculateNextTimes )
-		calculateNextTimes();  //in this function: if max == LCM, lastArrayOfValues = true
-	*/
-	
-	///////////////////////////////////////
-	// 4. Set next time to wake up
-	///////////////////////////////////////
-	
-	RTCUt.setNextTimeWhenToWakeUpViaOffset(3);
-	/*
 	if(defaultOperation)
-		RTCUt.setNextTimeWhenToWakeUpViaOffset( ( (unsigned int) Utils.readEEPROM(DEFAULT_T2W_H) ) * 256
-			+ Utils.readEEPROM(DEFAULT_T2W_L));
+		RTCUt.setNextTimeWhenToWakeUpViaOffset(defaultTime2WakeInt);
 	else
-	{	//find the next time to sleep:
-		uint16_t storedTime = 0;
-		uint8_t nrDays = 0;
-		uint16_t lastValuePos = Utils.readEEPROM(NR_OF_TIMES_STORED_IN_EEPROM) + Utils.readEEPROM(START_T2W_VALUES);
-		bool lastStoredValue = true;
-		
-		for(lastValuePos; lastValuePos > START_T2W_VALUES; lastValuePos--)
-		{
-			storedTime = (unsigned int) (Utils.readEEPROM(lastValuePos) ) * 256 + Utils.readEEPROM(--lastValuePos);
-			
-			if( storedTime >= ONE_DAY )
-			{
-				nrDays = storedTime / ONE_DAY;
-				storedTime %= ONE_DAY;		
-			}
-			
-			if( (storedTime % RTCUt.nextTime2WakeUpHoursMinsSecsInt == 0) && (nrDays % RTC.day == 0) )
-			{
-				RTCUt.setNextTimeWhenToWakeUpViaOffset( storedTime + nrDays * ONE_DAY );
-				
-				if(lastStoredValue)
-				{
-					//Depending on the mode, next time we awake, we must reset the RTC to zero or 
-					//calculate the next times to save in EEPROM
-					if( eepromReadMode == EASY )
-						storeValue(MUST_RESET_RTC, true);
-					else
-					{
-						if(lastArrayOfValues)
-							storeValue(MUST_RESET_RTC, true);
-						else
-							storeValue(MUST_CALCULATE_NEXT_TIMES, true);
-					}
-				}
-				
-				break;
-			}
-			lastStoredValue = false;
-		}
-
-	}
-	*/
+		findNextTime2Wake(HIBERNATE);
 	
 	// PWR.HIBERNATE DOES NOT ACCEPT OWN LIBELIUM ALARM FUNCTIONS...
 	
@@ -177,10 +117,10 @@ uint8_t WaspXBeeZBNode::storeValue(int address, uint8_t value)
 {
 	uint8_t error = 2;
 	
-	if(address > 291 && address < 4096)
+	if(address > 291 && address < 4090)
 	{
 		error = 0;
-		//Utils.writeEEPROM(address, value);	
+		Utils.writeEEPROM(address, value);	
 	}
 	else
 	{	
@@ -192,21 +132,30 @@ uint8_t WaspXBeeZBNode::storeValue(int address, uint8_t value)
 void WaspXBeeZBNode::readCoreVariablesFromEEPROM()
 {
 	//SENSOR_MASKS:  in case of incoming requests
-	physicalSensorMask = ( (unsigned int) Utils.readEEPROM(PHY_MASK_H) ) * 256
+	physicalSensorMask = ( (unsigned int) Utils.readEEPROM(PHY_MASK_H) * 256)
 		+ Utils.readEEPROM(PHY_MASK_L);
 	physicalSensorMaskLength = Utils.readEEPROM(PHY_MASK_LEN);
-	activeSensorMask = ( (unsigned int) Utils.readEEPROM(ACT_MASK_H) ) * 256
+	activeSensorMask = ( (unsigned int) Utils.readEEPROM(ACT_MASK_H) * 256)
 		+ Utils.readEEPROM(ACT_MASK_L);	
 	activeSensorMaskLength = Utils.readEEPROM(ACT_MASK_LEN);
 
 	//SLEEP
 	defaultOperation = Utils.readEEPROM(OPERATING_MODE);
-	resetRTC = Utils.readEEPROM(MUST_RESET_RTC);
-	eepromReadMode = Utils.readEEPROM(EEPROM_READ_MODE);
+		#ifdef HIBERNATE_DEBUG_V3
+			USB.print("defaultOp "); USB.println( (int) defaultOperation );
+		#endif
+	
+	if(defaultOperation)
+	{
+		defaultTime2WakeInt = ( (unsigned int) Utils.readEEPROM(DEFAULT_T2W_H)*256)
+			+ Utils.readEEPROM(DEFAULT_T2W_L);
+		#ifdef HIBERNATE_DEBUG_V3
+			USB.print("defaultT2w "); USB.println( (int) defaultTime2WakeInt );
+		#endif			
+	}
+
 	powerPlan = (PowerPlan) Utils.readEEPROM(POWERPLAN);
 	sleepMode = (SleepMode) Utils.readEEPROM(SLEEPMODE);	
-	//defaultTime2WakeInt++;
-	//	RTCUt.convertTime2Char(defaultTime2WakeInt, defaultTime2WakeStr);
 }
 
 
@@ -234,6 +183,29 @@ void WaspXBeeZBNode::testPrinting()
   * NODE LAYOUT / PRESENT SENSORS 
   *
   *************************************************************************************/
+uint8_t WaspXBeeZBNode::getDeviceRole()
+{
+	uint8_t error = 2;
+	
+	error = getDeviceType();
+	deviceRole = deviceType[3];
+	
+	return error;
+}  
+
+uint8_t WaspXBeeZBNode::setDeviceRole(DeviceRole role)
+{
+	uint8_t error = 2;
+	uint8_t type;
+	
+	type = (int) role;
+	
+	error = setDeviceType( &type );
+	getDeviceRole();
+	
+	return error;
+}
+  
 void WaspXBeeZBNode::setActiveSensorMask(int count, ...)
 {
 	va_list arguments;
@@ -256,13 +228,61 @@ void WaspXBeeZBNode::setActiveSensorMask(int count, ...)
 
 	setActiveSensorMaskLength();
 	
-	#ifdef NODE_DEBUG
-	USB.print("sum sensorMask = ");
-	USB.println( (int) activeSensorMask );
-	#endif
+		#ifdef NODE_DEBUG
+			USB.print("sum sensorMask = ");
+			USB.println( (int) activeSensorMask );
+		#endif
 }
 
 
+uint8_t WaspXBeeZBNode::setActiveSensorMaskWithTimes(uint16_t count, ...)
+{
+	uint8_t error = 0;
+	va_list arguments;
+	va_start (arguments, count);
+
+	activeSensorMask = 0;
+	int sum = 0;
+	SensorType type;
+	
+	defaultOperation = false;
+	memset(SensUtils.measuringInterval, 0, sizeof(SensUtils.measuringInterval));
+	
+	if(count % 2)
+		return error = 1;   ///Invalid data entered
+	
+	for(int x = 0; x < count; x++)
+	{
+		type =  (SensorType) va_arg( arguments, uint16_t );
+		activeSensorMask += type;
+		x++;
+		
+		error = SensUtils.registerSensorMeasuringIntervalTime(type, va_arg( arguments, uint16_t ) );	
+		
+			#ifdef NODE_DEBUG_V2
+				USB.print("sensorMask in for = ");
+				USB.println( (int) activeSensorMask );
+			#endif
+			
+		if(error)
+			break;
+	}
+
+	storeValue(ACT_MASK_H, activeSensorMask/256);	
+	storeValue(ACT_MASK_L, activeSensorMask%256);
+
+	setActiveSensorMaskLength();
+	
+		#ifdef NODE_DEBUG_V2
+			USB.print("sum sensorMask = ");
+			USB.println( (int) activeSensorMask );
+		#endif
+		
+	setNewDifferentSleepTimes(true);
+	
+	return error;
+}
+/*
 uint8_t WaspXBeeZBNode::setActiveSensorTimes(uint16_t count, ...)
 {
 	va_list arguments;
@@ -280,11 +300,11 @@ uint8_t WaspXBeeZBNode::setActiveSensorTimes(uint16_t count, ...)
 	free(times);
 	times = NULL;
 }
-
+*/
 
 void WaspXBeeZBNode::setActiveSensorMask(uint8_t * mask)
 {
-	activeSensorMask = ( (unsigned int) mask[0]*256) + mask[1];
+	activeSensorMask = (unsigned int) mask[0]*256 + mask[1];
 	
 	storeValue(ACT_MASK_H, mask[0]);	
 	storeValue(ACT_MASK_L, mask[1]);
@@ -295,7 +315,7 @@ void WaspXBeeZBNode::setActiveSensorMask(uint8_t * mask)
 
 void WaspXBeeZBNode::setPhysicalSensorMask(uint8_t * mask)
 {
-	physicalSensorMask = ( (unsigned int) mask[0]*256) + mask[1];
+	physicalSensorMask =  (unsigned int) (mask[0]*256 + mask[1]);
 		
 	storeValue(PHY_MASK_H, mask[0]);	
 	storeValue(PHY_MASK_L, mask[1]);
@@ -468,8 +488,11 @@ void WaspXBeeZBNode::enterLowPowerMode(SleepMode sm, uint16_t howLong)
 	}
 	else
 	{	
-		for(uint16_t i=0; i<howLong*5; i++) 
+		for(uint16_t i=0; i<howLong; i++) 
+		{
+			PWR.sleep(WTD_8S, ALL_OFF);
 			PWR.sleep(WTD_2S, ALL_OFF);
+		}
 		
 		if( intFlag & WTD_INT )  //"can be used as out of sleep interrupt"
         {
@@ -481,7 +504,115 @@ void WaspXBeeZBNode::enterLowPowerMode(SleepMode sm, uint16_t howLong)
 			#endif
 	}	
 }
+
  
+//! This function REQUIRES that the correct time to sleep (absolute for hibernate and deep sleep)
+//! or sleep time (offset for sleep) is known in either RTCUt.nextTime2WakeUpChar (hibernate) or in
+//! time2wValuesArray[posArray] (sleep/deep). 
+void WaspXBeeZBNode::enterLowPowerMode(SleepMode sm) ///AT END OF LOOP()
+{
+	if(sm == HIBERNATE)
+	{
+			#ifdef HIBERNATE_DEBUG_V2
+				USB.print("\n\nEntering HIBERNATE at ");
+				USB.println(RTC.getTime());
+				USB.print("till ");
+				USB.println(RTCUt.nextTime2WakeUpChar);
+			#endif
+			
+		defaultOperation == Utils.readEEPROM(OPERATING_MODE) ? : storeValue(OPERATING_MODE, defaultOperation);
+		sleepMode == (SleepMode) Utils.readEEPROM(SLEEPMODE) ? : storeValue(SLEEPMODE, sleepMode);
+		powerPlan == (PowerPlan) Utils.readEEPROM(POWERPLAN) ? : storeValue(POWERPLAN, powerPlan);			
+	
+		PWR.hibernate(RTCUt.nextTime2WakeUpChar, RTC_ABSOLUTE, RTC_ALM1_MODE3);
+		/// After hibernate we start in WaspXBeeZBNode::hibernateInterrupt()
+	}
+	else if(sm == DEEPSLEEP)  /// CANNOT BE COMBINED WITH HIBERNATE
+	{		
+			#ifdef DEEPSLEEP_DEBUG
+				USB.print("\nentering deepsleep till "); USB.print( RTCUt.nextTime2WakeUpChar );
+			#endif
+		PWR.deepSleep(RTCUt.nextTime2WakeUpChar, RTC_ABSOLUTE, RTC_ALM1_MODE3, ALL_OFF);
+		
+		RTC.ON();
+		RTCUt.getTime();
+		RTC.setMode(RTC_OFF,RTC_NORMAL_MODE);  //this will save power
+			
+		USB.begin();
+			#ifdef DEEPSLEEP_DEBUG
+				USB.print("awake at "); USB.println(RTC.getTime());
+			#endif
+		if(defaultOperation)
+		{
+			RTCUt.setNextTimeWhenToWakeUpViaOffset(defaultTime2WakeInt);
+		}
+		else
+		{
+				#ifdef DEEPSLEEP_DEBUG
+					USB.print("out of sleep, posInArray = ");
+					USB.println( (int) posInArray );
+					USB.print("next t2s = ");
+					USB.println( (int) time2wValuesArray[posInArray]);
+					USB.println( (int) time2wValuesArray[posInArray + 1]);
+					USB.println( (int) (time2wValuesArray[posInArray + 1] - time2wValuesArray[posInArray]) );
+				#endif
+			findNextTime2Wake(DEEPSLEEP);
+			updatePosInArray();	
+		}
+		/// GOTO "device enters loop"
+	}
+	else if(sm == SLEEP)
+	{
+		/// TODO: CALCULATE MORE ACCURATE (ATM OFFSET IS USED)
+		///       WDT CANNOT USE ABSOLUTE T2WAKE VALUE FROM RTC
+		if(defaultOperation)
+		{
+				#ifdef SLEEP_DEBUG
+					USB.print("defaultT2w ");
+					USB.println( (int) defaultTime2WakeInt);
+				#endif				
+			for(uint16_t i=0; i<defaultTime2WakeInt; i++) 
+			{
+				PWR.sleep(WTD_8S, ALL_OFF);
+				PWR.sleep(WTD_2S, ALL_OFF);
+			}			
+		}
+		else
+		{
+			uint16_t time = 0;
+			time = 	time2wValuesArray[posInArray+1] - time2wValuesArray[posInArray];
+				#ifdef SLEEP_DEBUG
+					USB.print("t2Sleep");
+					USB.println( (int) time);
+				#endif		
+			for(uint16_t i=0; i<time; i++) 
+			{
+				PWR.sleep(WTD_8S, ALL_OFF);
+				PWR.sleep(WTD_2S, ALL_OFF);
+			}
+		}
+		
+      	USB.begin();
+			#ifdef SLEEP_DEBUG
+				USB.print("out sleep");
+			#endif		
+	
+		if( intFlag & WTD_INT )  //"can be used as out of sleep interrupt"
+        {
+			intFlag &= ~(WTD_INT);
+			if(!defaultOperation) updatePosInArray();
+			
+				#ifdef SLEEP_DEBUG
+					USB.print("posInArray ");
+					USB.println( (int) posInArray );
+				#endif
+			
+			/// GOTO "device enters loop"
+        }
+	}	
+}
+ 
+
  
 void WaspXBeeZBNode::hibernate()
 {
@@ -518,15 +649,109 @@ void WaspXBeeZBNode::hibernate()
 		//store more: these values are stored only once via changeSensorFrequencies()
 	}
 	
-	//PWR.hibernate(RTC.getAlarm1(),RTC_ABSOLUTE,RTC_ALM1_MODE3);
-	
-	//PWR.hibernate("04:15:00:30",RTC_ABSOLUTE,RTC_ALM1_MODE3);
-	
 	PWR.hibernate(RTCUt.nextTime2WakeUpChar, RTC_ABSOLUTE, RTC_ALM1_MODE3);
-	
-	//PWR.hibernate(xbeeZB.defaultTime2WakeStr, RTC_OFFSET, RTC_ALM1_MODE2);
+		/// PWR.hibernate(RTC.getAlarm1(),RTC_ABSOLUTE,RTC_ALM1_MODE3);					NOT WORKING
+		/// PWR.hibernate(xbeeZB.defaultTime2WakeStr, RTC_OFFSET, RTC_ALM1_MODE2);		NOT WORKING
 }
 
+void WaspXBeeZBNode::findNextTime2Wake(SleepMode sm)  
+{
+	switch(sm)
+	{
+		case DEEPSLEEP:
+		{
+			if(!posInArray) 
+				RTCUt.setNextTimeWhenToWakeUpViaOffset(time2wValuesArray[posInArray]);
+			else
+				RTCUt.setNextTimeWhenToWakeUpViaOffset(time2wValuesArray[posInArray] - time2wValuesArray[posInArray-1]);				
+		}
+		break;
+		
+		
+		case HIBERNATE:
+		{
+			uint8_t nrDays = 0;
+			uint16_t lastValuePos = ( (uint16_t) Utils.readEEPROM(NR_OF_TIMES_STORED_IN_EEPROM_H) * 256
+										+ Utils.readEEPROM(NR_OF_TIMES_STORED_IN_EEPROM_L) ) * 2
+									+ START_T2W_VALUES - 1;
+			bool lastStoredValue = true;
+			
+				#ifdef HIBERNATE_DEBUG_V3
+					USB.println("findNextT2W value.");
+					USB.print("lastValPos = ");  USB.println( (int) lastValuePos );
+					USB.print("RTCsecMinHourInt = "); USB.println( (int) RTCUt.RTCSecMinHourInt );
+				#endif		
+				
+			while(lastValuePos > START_T2W_VALUES)
+			{
+				storedTime = (unsigned int) (Utils.readEEPROM(lastValuePos) ) * 256 + Utils.readEEPROM(--lastValuePos);
+					#ifdef HIBERNATE_DEBUG_V3
+						USB.print("storedTime:"); USB.println( (int) storedTime );
+					#endif
+				if( (RTCUt.RTCSecMinHourInt % storedTime == 0) )//&& (nrDays % RTC.day == 0) )
+				{
+						#ifdef HIBERNATE_DEBUG_V3
+							USB.print("storedTime%=0 "); USB.println( (int) storedTime );
+						#endif				
+					//if(lastValuePos == START_T2W_VALUES)
+					//	RTCUt.setNextTimeWhenToWakeUpViaOffset( storedTime );	
+					//else
+					//{
+						uint16_t nextTime = (unsigned int) (Utils.readEEPROM(lastValuePos+1)  * 256 + Utils.readEEPROM(lastValuePos+2) );
+							#ifdef HIBERNATE_DEBUG_V3
+								USB.print("nextTime = "); USB.println( (int) nextTime );
+							#endif				
+						RTCUt.setNextTimeWhenToWakeUpViaOffset( nextTime - storedTime );
+					//}
+					
+					if(lastStoredValue)
+					{
+						if( Utils.readEEPROM(ARRAY_READ_MODE) == DIFFICULT ) 
+							setNewDifferentSleepTimes(false);
+						else
+						{
+							uint16_t firstTime = (unsigned int) ( Utils.readEEPROM(START_T2W_VALUES) + Utils.readEEPROM(START_T2W_VALUES + 1) * 256 );
+								#ifdef HIBERNATE_DEBUG_V3
+									USB.print("firstTime = "); USB.println( (int) firstTime );
+								#endif	
+							RTCUt.reinitialize();								
+							RTCUt.setNextTimeWhenToWakeUpViaOffset( firstTime );
+
+						}
+					}
+					
+					break;
+				}
+				lastStoredValue = false;
+				lastValuePos--;
+			}	
+	
+		}
+		
+		
+		
+		
+		
+
+		default:
+			break;
+	}	
+} 
+
+void WaspXBeeZBNode::updatePosInArray()
+{
+	USB.print("lengthArray = "); USB.println( (int) lengthArray );
+	if(arrayReadMode == EASY)
+		posInArray == lengthArray-1 ? posInArray = 0 : posInArray+=1;
+	else
+		if(posInArray == lengthArray-1)
+		{
+			posInArray = 0;
+			setNewDifferentSleepTimes(false);
+		}
+		else
+			posInArray+=1;
+}
   
 /**************************************************************************************
   *
@@ -646,7 +871,7 @@ uint8_t WaspXBeeZBNode::changeSensorFrequencies(char * array)
 	{
 		//finds and saves the next x hibernate times.
 		//in case all sensors are set to the same interval defaultOperation mode is enabled again
-		error = setNewDifferentSleepTimes();
+		error = setNewDifferentSleepTimes(true);
 		if(error)
 		{
 			PackUtils.packetSize = 1;
@@ -674,32 +899,60 @@ uint8_t WaspXBeeZBNode::changeSensorFrequencies(char * array)
 }
   
 
-uint8_t WaspXBeeZBNode::setNewDifferentSleepTimes()
+uint8_t WaspXBeeZBNode::setNewDifferentSleepTimes(bool firstCall)
 {
-	
-	//uint16_t max = 0, min = 0, pos = 0, i=1;
-	uint8_t error = 2;
+	uint8_t error = 2, j = 0;
 	uint16_t * sortedTimes = (uint16_t *) calloc(activeSensorMaskLength, sizeof(uint16_t));
-	//uint16_t LCM = 0;
+	
+	
+	if(firstCall || sleepMode == HIBERNATE)
+	{
+		time2wValuesArray = (uint16_t *) calloc(MAX_DATA_PER_SENSOR*nrActivatedSensors, sizeof(uint16_t));
+		sensMultiplier = (uint16_t *) calloc(nrActivatedSensors, sizeof(uint16_t));
+		lastArrayContainedLCM = true;
+	} /// else the memory space is allocated and may be overwritten
 
 	//////////////////////////////////////////
 	// SENSOR MEASURING INTERVALS
 	//////////////////////////////////////////
 	
+		if(!firstCall && sleepMode == HIBERNATE)
+		{
+			/// READ SENSOR MEASURINT INTERVALS FROM EEPROM
+			SensUtils.readSensorMeasuringIntervalTimesFromEEPROM();	
+
+			/// CHECK IF LAST ARRAY CONTAINED THE LCM
+			lastArrayContainedLCM = Utils.readEEPROM(LAST_ARRAY_CONTAINED_LCM);
+		}
+	
 	//create a temp array and fill it with the measuring intervals
+		#ifdef NODE_DEBUG_V2
+			USB.println("measuringIntervals");
+		#endif
+		
 	for(uint8_t i=0; i<NUM_SENSORS; i++)
 	{
 		if(SensUtils.measuringInterval[i] > 0)
-			sortedTimes[i] = SensUtils.measuringInterval[i];
+		{
+			sortedTimes[j] = SensUtils.measuringInterval[i];
+				#ifdef NODE_DEBUG_V2
+					USB.println( (int) sortedTimes[j]);
+				#endif
+			j++;
+		}
 	}
 	
-	//sort the array:
-	qsort(sortedTimes, activeSensorMaskLength, sizeof(uint16_t), compare);
+	//sort the temporary array:
+	qsort(sortedTimes, j, sizeof(uint16_t), compare);
 	
-	//estimate size of wake times array; factor will be used after x sleep cycles to calculate
-	// the next x sleep cycles in case they don't fit within MAX_DATA
+		#ifdef NODE_DEBUG_V2
+			USB.print("sorted ");
+			for(uint8_t i=0; i<j; i++)
+				USB.println( (int) sortedTimes[i] );
+		#endif
+	
 	SensUtils.minTime = sortedTimes[0];
-	SensUtils.maxTime = sortedTimes[activeSensorMaskLength];
+	SensUtils.maxTime = sortedTimes[--j];
 	
 	//after playing with the intervals it can become possible they all have the same time again:
 	if( SensUtils.minTime == SensUtils.maxTime )
@@ -709,73 +962,91 @@ uint8_t WaspXBeeZBNode::setNewDifferentSleepTimes()
 	}
 	else
 	{
-
-		//save the array of individual measuring times and min/max/factor:
-		//need this values to compare with the time of the big array of times. if %= 0 you need to
-		//measure that sensor...
-		//factor = ( (max/min)/MAX_DATA + 1); 
-		
-		storeValue(MIN_SENS_TIME_L, SensUtils.minTime%256);	storeValue(MIN_SENS_TIME_H, SensUtils.minTime/256);
-		storeValue(MAX_SENS_TIME_L, SensUtils.maxTime%256);	storeValue(MAX_SENS_TIME_H, SensUtils.maxTime/256);
-		//storeValue(FACTOR_TO_INCREASE_BEFORE_REPEATING, factor);
-		//storeValue(FACTOR_TO_MULTIPLY_L, i%256);
-		//storeValue(FACTOR_TO_MULTIPLY_H, i/256);
+		/////////////////////////////////
+		// 1. SENS MULTIPLIERS = 1
+		/////////////////////////////////
+		if(firstCall || lastArrayContainedLCM)
+		{
+			for(uint16_t i=0; i<nrActivatedSensors; i++)  //memset(sensMultiplier, 1, nrActivatedSensors);  doesn't work
+				sensMultiplier[i] = 1;
+		}
 	
-		/// if mode == hibernate
-		SensUtils.saveSensorMeasuringIntervalTimes();
+		/////////////////////////////////////////////////////////////////////////////////////////////////
+		// 2. CALCULATE LCM:
+		//    Estimate size of wake times array; factor will be used after x sleep cycles to calculate
+		//    the next x sleep cycles in case they don't fit within MAX_DATA
+		/////////////////////////////////////////////////////////////////////////////////////////////////
+		LCM = calculateMaxNrElementsForEEPROMArray(sortedTimes);
+			#ifdef MATH_DEBUG
+				USB.print("LCM = "); USB.println( (int) LCM);
+			#endif
 		
-		//This is the first (and possible last) time this function is executed:
-		//Set sens_i[NUM_SENSORS] = 1
-		createAndSaveNewTime2SleepArray(sortedTimes);
-		
+		if(firstCall)
+		{
+			if( LCM/sortedTimes[0] < MAX_DATA_PER_SENSOR )
+			{
+				arrayReadMode = EASY;
+				//factor = 1;
+			}
+			else
+			{
+				arrayReadMode = DIFFICULT;
+				//factor = calculateMaxNrElementsForEEPROMArray(sortedTimes) / MAX_DATA_PER_SENSOR;
+			}
+			
+				#ifdef MATH_DEBUG
+					USB.print("\nsortedTimes: ");
+					//qsort(sortedTimes, nrActivatedSensors, sizeof(uint16_t), compare);
+					for(uint16_t i=0; i<nrActivatedSensors; i++)
+					{
+						USB.print(sortedTimes[i]);
+					}
+					USB.print("\nsensMultiplier: ");
+					for(uint16_t i=0; i<nrActivatedSensors; i++)
+					{
+						USB.print(sensMultiplier[i]);
+					}
+				#endif
+		}
+		/// else if(sleepMode == HIBERNATE)
+		///   readEEPROM(SLEEPMODE)  =>  already happenend
+			
+		///////////////////////////////////
+		// 3. STORE TO EEPROM FOR HIBERNATE
+		///////////////////////////////////
+		if(firstCall & sleepMode == HIBERNATE)
+		{
+			//storeValue(MIN_SENS_TIME_L, SensUtils.minTime%256);	storeValue(MIN_SENS_TIME_H, SensUtils.minTime/256);
+			//storeValue(MAX_SENS_TIME_L, SensUtils.maxTime%256);	storeValue(MAX_SENS_TIME_H, SensUtils.maxTime/256);
+
+			SensUtils.saveSensorMeasuringIntervalTimes();
+		}
+
+		/////////////////////////////////
+		// 4. CALCULATE VALUES
+		/////////////////////////////////
+		createAndSaveNewTime2SleepArray(sortedTimes);	
 	}
 	free(sortedTimes);
 	sortedTimes = NULL;
+	
+	//////////////////////////////////////////
+	// SET THE FIRST SLEEP TIME OFFSET
+	//////////////////////////////////////////
+	RTCUt.setNextTimeWhenToWakeUpViaOffset(time2wValuesArray[0]);
 }
 
 	
 void WaspXBeeZBNode::createAndSaveNewTime2SleepArray(uint16_t * sortedTimes)
 {
-	uint8_t sensorNr = 0, factor = 0, mode = EASY;
-	/*uint16_t * */time2wValuesArray = (uint16_t *) calloc(MAX_DATA_PER_SENSOR*nrActivatedSensors, sizeof(uint16_t));
-	lengthArray = 1;
-	/*uint16_t * */sensMultiplier = (uint16_t *) calloc(nrActivatedSensors, sizeof(uint16_t));
-	uint16_t maxInArray = 0,  LCM = 0, pos_eeprom = 0, eeprom_offset = 0;
-	
-	for(uint16_t i=0; i<nrActivatedSensors; i++)  //memset(sensMultiplier, 1, nrActivatedSensors);  doesn't work
-		sensMultiplier[i] = 1;
-	
-	
-	/////////////////////////////////
-	// 1. CALCULATE LCM
-	/////////////////////////////////
-	LCM = calculateMaxNrElementsForEEPROMArray(sortedTimes);
-		#ifdef MATH_DEBUG
-			USB.print("LCM = "); USB.println( (int) LCM);
-		#endif
-	if( LCM/sortedTimes[0] < MAX_DATA_PER_SENSOR )
-	{
-		mode = EASY;
-		factor = 1;
-	}
-	else
-	{
-		mode = DIFFICULT;
-		factor = calculateMaxNrElementsForEEPROMArray(sortedTimes) / MAX_DATA_PER_SENSOR;
-	}
-	
-		#ifdef MATH_DEBUG
-			USB.print("\nsortedTimes: ");
-			qsort(sortedTimes, nrActivatedSensors, sizeof(uint16_t), compare);
-			for(uint16_t i=0; i<nrActivatedSensors; i++)
-			{
-				USB.print(sortedTimes[i]);
-			}
-			USB.print("\nsensMultiplier: ");
-			for(uint16_t i=0; i<nrActivatedSensors; i++)
-			{
-				USB.print(sensMultiplier[i]);
-			}
+	uint8_t sensorNr = 0, factor = 0;
+	//time2wValuesArray = (uint16_t *) calloc(MAX_DATA_PER_SENSOR*nrActivatedSensors, sizeof(uint16_t));
+	lengthArray = 0;
+	uint16_t maxInArray = 0,  pos_eeprom = 0, eeprom_offset = 0;
+	uint16_t newPos = 0; 
+
+		#ifdef TEST_DIFFICULT_DEBUG
+			LCM = 15;
 		#endif
 	
 	/////////////////////////////////
@@ -851,6 +1122,7 @@ void WaspXBeeZBNode::createAndSaveNewTime2SleepArray(uint16_t * sortedTimes)
 			}
 		#endif
 		
+		
 	////////////////////////////////////
 	// 3. SORT & REMOVE DUPLICATE VALUES
 	////////////////////////////////////
@@ -864,8 +1136,7 @@ void WaspXBeeZBNode::createAndSaveNewTime2SleepArray(uint16_t * sortedTimes)
 			#endif
 		
 		 //delete duplicate values and determine array length
-		uint16_t newPos = 0; 
-		for(uint8_t i=1; i<pos; i++)
+		for(uint8_t i=1; i<=pos; i++)
 		{
 			if(time2wValuesArray[newPos] != time2wValuesArray[i]) 
 			{
@@ -877,7 +1148,7 @@ void WaspXBeeZBNode::createAndSaveNewTime2SleepArray(uint16_t * sortedTimes)
 		// 2. Indicate end of array
 		time2wValuesArray[lengthArray] = 0;
 		
-			#ifdef MATH_DEBUG
+			#ifdef HIBERNATE_DEBUG_V2
 				USB.print("\nno duplicates ");
 				for(uint16_t i=0; i<lengthArray; i++)
 				{
@@ -885,32 +1156,60 @@ void WaspXBeeZBNode::createAndSaveNewTime2SleepArray(uint16_t * sortedTimes)
 					USB.print(" ");
 				}
 			#endif
+		
+		// 3. Check if last element == LCM
+		if(arrayReadMode == DIFFICULT)
+		{
+			if(time2wValuesArray[lengthArray - 1] == LCM)
+			{
+				//Reset sensor multipliers
+				for(uint16_t i=0; i<nrActivatedSensors; i++)  //memset(sensMultiplier, 1, nrActivatedSensors);  doesn't work
+					sensMultiplier[i] = 1;
+			}
+		}
+		
+			#ifdef DEEPSLEEP_DEBUG
+				USB.println("sensMultipliers: 0-nrActiveSensors");
+				for(uint8_t i=0; i<nrActivatedSensors; i++)
+					USB.println( (int) sensMultiplier[i]);
+			#endif
 	
 	/////////////////////////////////
 	// 4. STORE VALUES
 	/////////////////////////////////	
-	/*
+	
 		if( sleepMode == HIBERNATE )
 		{
-			eeprom_offset = lengthArray;
-	
-			storeValue(NR_ACTIVATED_SENSORS, nrActivatedSensors);
-			storeValue(EEPROM_READ_MODE, EASY);
-			storeValue(NR_OF_TIMES_STORED_IN_EEPROM, lengthArray);
-			
 			pos_eeprom = START_T2W_VALUES;
+			storeValue(NR_ACTIVATED_SENSORS, nrActivatedSensors);
+			storeValue(NR_OF_TIMES_STORED_IN_EEPROM_H, lengthArray/256);
+			storeValue(NR_OF_TIMES_STORED_IN_EEPROM_L, lengthArray%256);
+			
+			if( mode == EASY)
+			{
+				storeValue(ARRAY_READ_MODE, EASY);
+			}
+			
+			/// SAVE TIMES TO WAKE
+						#ifdef HIBERNATE_DEBUG_V3
+							USB.println("\nSaving t2w values to..");
+						#endif
 			for(uint16_t i=0; i<lengthArray; i++)
 			{
+						#ifdef HIBERNATE_DEBUG_V3
+							USB.println( (int) pos_eeprom );
+							USB.println( (int) pos_eeprom+1 );
+						#endif
 					storeValue(pos_eeprom++, time2wValuesArray[i]%256);
 					storeValue(pos_eeprom++, time2wValuesArray[i]/256);
 			}
 			
+			/// IF DIFFICUTL, also save sensor multipliers
 			if( mode == DIFFICULT )
 			{
-				//Also save sensor multipliers
-				storeValue(EEPROM_READ_MODE, DIFFICULT);
-				
+				storeValue(ARRAY_READ_MODE, DIFFICULT);
 				pos_eeprom = FIRST_SENS_MULTIPLIER;
+				
 				for(sensorNr = 0; sensorNr<nrActivatedSensors; sensorNr++)
 				{
 					storeValue(pos_eeprom++, sensMultiplier[sensorNr]%256);
@@ -918,15 +1217,27 @@ void WaspXBeeZBNode::createAndSaveNewTime2SleepArray(uint16_t * sortedTimes)
 				}
 			}
 		}
-	*/	
-		/// else if( sleepmMode == DEEPSLEEP )
-		//! use pointers from xbeeZB to search the next sleep time
+		else /// sleepmMode == SLEEP || sleepMode == DEEPSLEEP )
+		{
+			//! use pointers from xbeeZB to search the next sleep time
+			posInArray = 1;  /// Only for to start correctly, ignore
+		}
 }
 
+/*
 void WaspXBeeZBNode::calculateNextTimes()
 {
-
+	//posInArray = 0;
+	
+	if( sleepMode == HIBERNATE )
+	{
+		/// Read SensMultipliers from EEPROM
+		//if( false,   //lastArray (LCM) ) RESET sensmultipliers
+	}
+	//if( == LCM) next Time must reset RTC
+	
 }
+*/
 
 void WaspXBeeZBNode::recalculateTimesFromBeginning(){}
 	
@@ -999,12 +1310,6 @@ uint16_t lcm( uint16_t a, uint16_t b )
 
 uint16_t toUint16_t(char & high, char & low)
 {
-	#ifdef ADD_NODE_REQ_DEBUG
-		USB.println("\ntoUint16");
-		USB.println( (int) high );
-		USB.println( (int) low );
-	#endif
-	
 	return  ( (uint16_t) ((  high ) * 256 ) + ( low) );
 }
 
@@ -1015,7 +1320,198 @@ uint16_t toUint16_t(char * ar)
 	return  ( (uint16_t) ((  ar[0] ) * 256 ) + (ar[1]) );
 }
 
+/*
+void WaspXBeeZBNode::createAndSaveNewTime2SleepArray(uint16_t * sortedTimes)
+{
+	uint8_t sensorNr = 0, factor = 0;
+	/*uint16_t * time2wValuesArray = (uint16_t *) calloc(MAX_DATA_PER_SENSOR*nrActivatedSensors, sizeof(uint16_t));
+	lengthArray = 1;
+	/*uint16_t * sensMultiplier = (uint16_t *) calloc(nrActivatedSensors, sizeof(uint16_t));
+	uint16_t maxInArray = 0,  pos_eeprom = 0, eeprom_offset = 0;
+	
+	for(uint16_t i=0; i<nrActivatedSensors; i++)  //memset(sensMultiplier, 1, nrActivatedSensors);  doesn't work
+		sensMultiplier[i] = 1;
+	
+	
+	/////////////////////////////////
+	// 1. CALCULATE LCM
+	/////////////////////////////////
+	LCM = calculateMaxNrElementsForEEPROMArray(sortedTimes);
+		#ifdef MATH_DEBUG
+			USB.print("LCM = "); USB.println( (int) LCM);
+		#endif
+	if( LCM/sortedTimes[0] < MAX_DATA_PER_SENSOR )
+	{
+		arrayReadMode = EASY;
+		factor = 1;
+	}
+	else
+	{
+		arrayReadMode = DIFFICULT;
+		factor = calculateMaxNrElementsForEEPROMArray(sortedTimes) / MAX_DATA_PER_SENSOR;
+	}
+	
+		#ifdef MATH_DEBUG
+			USB.print("\nsortedTimes: ");
+			qsort(sortedTimes, nrActivatedSensors, sizeof(uint16_t), compare);
+			for(uint16_t i=0; i<nrActivatedSensors; i++)
+			{
+				USB.print(sortedTimes[i]);
+			}
+			USB.print("\nsensMultiplier: ");
+			for(uint16_t i=0; i<nrActivatedSensors; i++)
+			{
+				USB.print(sensMultiplier[i]);
+			}
+		#endif
+	
+	/////////////////////////////////
+	// 2. CALCULATE VALUES
+	/////////////////////////////////
+	pos = 0;
+		//FOR EACH ACTIVE SENSOR:
+		for(sensorNr = 0; sensorNr<nrActivatedSensors; sensorNr++)
+		{
+			
+			bool mayBeAdded = false;
+			//FOR LOWEST TIME VALUES
+			if( sensorNr == 0 )  
+			{
+				while( (pos < MAX_DATA_PER_SENSOR) && (sortedTimes[0] * sensMultiplier[0] <= LCM ) )//sortedTimes[nrActivatedSensors-1]) )
+				{
+					time2wValuesArray[pos] = sortedTimes[0] * sensMultiplier[0];
+					pos++;  sensMultiplier[0]++;
+					if( sortedTimes[0] * sensMultiplier[0] > LCM )//sortedTimes[nrActivatedSensors-1] )
+					{
+						maxInArray = sortedTimes[nrActivatedSensors-1];
+						break;
+					}
+					else if( pos == MAX_DATA_PER_SENSOR)
+					{
+						maxInArray = time2wValuesArray[--pos];
+					}
+				}
+				#ifdef MATH_DEBUG_EXTENDED
+					USB.print("nrSensor=0: ");
+					for(uint16_t i=0; i<MAX_DATA_PER_SENSOR;i++)
+					{
+						USB.print(time2wValuesArray[i]);
+						USB.print(" ");
+					}
+					USB.print("\n\n");
+				#endif
+			}
+			else
+			{
+				USB.print("pos "); USB.println( (int) pos);
+				USB.print("sensNr "); USB.println( (int) sensorNr);
+				while( (sortedTimes[sensorNr] * sensMultiplier[sensorNr] <= LCM ) )//maxInArray ) )
+				{
+				
+					time2wValuesArray[pos] = sortedTimes[sensorNr] * sensMultiplier[sensorNr];
+					pos++;  sensMultiplier[sensorNr]++;
+					
+					//if( sortedTimes[sensorNr] * sensMultiplier[sensorNr] > sortedTimes[nrActivatedSensors-1] )
+					//{
+					//	break;
+					//}
+					
+					#ifdef MATH_DEBUG_EXTENDED
+						USB.print("nrSensor=0: ");
+						for(uint16_t i=0; i<MAX_DATA_PER_SENSOR;i++)
+						{
+							USB.print(time2wValuesArray[i]);
+							USB.print(" ");
+						}
+						USB.print("\n\n");
+					#endif
+				}
+			}
+		}
 
-
+		#ifdef MATH_DEBUG_EXTENDED
+			USB.print("\nFULLtime2wValuesArray: ");
+			for(uint16_t i=0; i<pos; i++)
+			{
+				USB.print(time2wValuesArray[i]);
+				USB.print(" ");
+			}
+		#endif
+		
+	////////////////////////////////////
+	// 3. SORT & REMOVE DUPLICATE VALUES
+	////////////////////////////////////
+			
+		// 1. Sort array
+		qsort(time2wValuesArray, pos, sizeof(uint16_t), compare);
+			#ifdef MATH_DEBUG
+				USB.print("\nsorted ");
+				for(uint16_t i=0; i<pos; i++)
+					USB.print(time2wValuesArray[i]);
+			#endif
+		
+		 //delete duplicate values and determine array length
+		uint16_t newPos = 0; 
+		lengthArray = 0;
+		for(uint8_t i=1; i<pos; i++)
+		{
+			if(time2wValuesArray[newPos] != time2wValuesArray[i]) 
+			{
+				time2wValuesArray[++newPos] = time2wValuesArray[i];	
+				lengthArray++;
+			}
+		}
+		
+		// 2. Indicate end of array
+		time2wValuesArray[lengthArray] = 0;
+		
+			#ifdef MATH_DEBUG
+				USB.print("\nno duplicates ");
+				for(uint16_t i=0; i<lengthArray; i++)
+				{
+					USB.print(time2wValuesArray[i]);
+					USB.print(" ");
+				}
+			#endif
+	
+	/////////////////////////////////
+	// 4. STORE VALUES
+	/////////////////////////////////	
+	
+		if( sleepMode == HIBERNATE )
+		{
+			eeprom_offset = lengthArray;
+	
+			storeValue(NR_ACTIVATED_SENSORS, nrActivatedSensors);
+			storeValue(ARRAY_READ_MODE, EASY);
+			storeValue(NR_OF_TIMES_STORED_IN_EEPROM, lengthArray);
+			
+			pos_eeprom = START_T2W_VALUES;
+			for(uint16_t i=0; i<lengthArray; i++)
+			{
+					storeValue(pos_eeprom++, time2wValuesArray[i]%256);
+					storeValue(pos_eeprom++, time2wValuesArray[i]/256);
+			}
+			
+			if( mode == DIFFICULT )
+			{
+				//Also save sensor multipliers
+				storeValue(ARRAY_READ_MODE, DIFFICULT);
+				
+				pos_eeprom = FIRST_SENS_MULTIPLIER;
+				for(sensorNr = 0; sensorNr<nrActivatedSensors; sensorNr++)
+				{
+					storeValue(pos_eeprom++, sensMultiplier[sensorNr]%256);
+					storeValue(pos_eeprom++, sensMultiplier[sensorNr]/256);				
+				}
+			}
+		}
+		else // if( sleepmMode == SLEEP || sleepMode == DEEPSLEEP )
+		{
+			//! use pointers from xbeeZB to search the next sleep time
+			posInArray = 0;
+		}
+}
+*/
 
 WaspXBeeZBNode xbeeZB = WaspXBeeZBNode();

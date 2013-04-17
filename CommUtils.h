@@ -63,6 +63,7 @@ class CommUtils
 		//! This setup function will initialize the XBEE and program with the default
 		/*! values described for Group T in 2012-2013. See paper DESIGN OF A WIRELESS SENSOR
 		/*	NETWORKING TEST-BED by Bjorn Deraeve and Roel Storms
+		 *  \@post : defaultTime2Wake will be set
 		 *  \return: 0 : successfully joined and associated
 		 *			 1 : either XBee not present or no coordinator found, use 
 		 *				 #define ASSOCIATION_DEBUG
@@ -72,13 +73,16 @@ class CommUtils
 		
 		//! This setup function will initialize the program with the settings given in parameters:
 		/*!	\param 0: PAN ID
-		 *	\param 1: DEFAULT GATEWAY MAC ADDRESS
-		 *	\param 2: NODE IDENTIFIER (the NI must be a 20 character max string)
+		 *	\param 1: DEVICE ROLE: END_DEVICE, ROUTER, or COORDINATOR
+		 *	\param 2: DEFAULT GATEWAY MAC ADDRESS
+		 *	\param 3: SLEEPMODE
+		 *	\param 4: NODE IDENTIFIER (the NI must be a 20 character max string)
+		 *  \@post : defaultTime2Wake will be set
 		 *  \return: 0 : successfully joined and associated
 		 *			 1 : either XBee not present or no coordinator found, use 
 		 *				 #define ASSOCIATION_DEBUG
 		 */
-		uint8_t setupXBee(uint8_t[8], uint8_t[8], char *);
+		uint8_t setupXBee(uint8_t[8], DeviceRole, uint8_t[8], SleepMode, char *);
 		
 		
 		//! It gets and prints the current node association state.
@@ -114,7 +118,8 @@ class CommUtils
 					error=0 --> Message received successfully
 		*/ 		
 		uint8_t receiveMessages();
-				
+		
+		uint8_t receiveTest();
 		
 		//! It sends a packet of type (applicationID) 0: 'ERRORMESSAGE' to destination
 		/*!
@@ -136,9 +141,9 @@ class CommUtils
 					error=1 --> The message could not be sent
 					error=0 --> The command has been executed with no errors
 		*/
-		uint8_t sendMessage(uint8_t * destination, uint8_t, const char * message);		
+		uint8_t sendMessage(uint8_t * destination, uint8_t, /*const*/ char * message);		
 		
-		
+		char * escapeZeros(char *, uint8_t);
 		
 		#ifdef RECEIVE_DEBUG
 			//! It stores the received data for debugging reasons.

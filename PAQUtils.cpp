@@ -300,15 +300,9 @@ void PAQUtils::escapeZerosInPacketData(char * content)
 		uint8_t error = 2;
 			#ifdef ADD_NODE_REQ_DEBUG
 				USB.println("ADD_NODE_REQ");
-				uint16_t tes;
 			#endif
 	
 		// 1. Set the physical mask
-			#ifdef ADD_NODE_REQ_DEBUG
-				USB.println("rec mask = ");
-				tes = toUint16_t( receivedPaq->data[0], receivedPaq->data[1] );
-				USB.println( (int ) tes );
-			#endif
 		xbeeZB.setPhysicalSensorMask( (uint8_t *) receivedPaq->data);
 			#ifdef ADD_NODE_REQ_DEBUG
 				USB.print("xbeeZB.phyMask = ");
@@ -317,7 +311,12 @@ void PAQUtils::escapeZerosInPacketData(char * content)
 			#endif
 		
 		// 2. Set received mask as active sensor mask
-		xbeeZB.setActiveSensorMask(xbeeZB.physicalSensorMask);
+		xbeeZB.setActiveSensorMask( (uint8_t *) receivedPaq->data );
+			#ifdef ADD_NODE_REQ_DEBUG
+				USB.print("xbeeZB.actMask = ");
+				USB.print( (int) xbeeZB.activeSensorMask );
+				USB.print("\n");
+			#endif		
 		
 		// 3. Set Node Identifier  (not receiving this atm)
 		//xbeeZB.setNodeIdentifier( itoa(receivedPaq->data[2], xbeeZB.nodeID, 10) );
@@ -599,7 +598,7 @@ void PAQUtils::escapeZerosInPacketData(char * content)
 
 
 
-void PAQUtils::testComm(uint8_t * destination, uint8_t type, const char * message)
+void PAQUtils::testComm(uint8_t * destination, uint8_t type, char * message)
 {
 		COMM.sendMessage(destination, type, message);
 

@@ -135,10 +135,6 @@ class SensorUtils
 		uint8_t sensorValue2Chars(float, SensorType);
 		
 		
-		//! It is called when sensors get individual sensor times
-		void saveSensorMeasuringIntervalTimes();
-		
-		
 		//! Measures and stores all sensors found in the mask argument
 		/*!!!!! This function takes care of all turning ON/OFF board and sensor requirements !!!!!
 		  \return  	error=3 --> EEPROM FULL, values must be sent
@@ -148,6 +144,20 @@ class SensorUtils
 		*/		
 		uint8_t measureAndstoreSensorValues(uint16_t);
 		
+		
+		
+		//! It enters the sensor's measuring interval time to the correct position in 
+		//! the measuringInterval[NUM_SENSORS] array
+		uint8_t registerSensorMeasuringIntervalTime(SensorType, uint16_t);
+		
+		
+		//! It saves the values in measuringInterval[NUM_SENSORS] to the correct positions
+		//! in EEPROM
+		void saveSensorMeasuringIntervalTimes();
+		
+		//! It reads the values of the currently active sensors from EEPROM and stores them
+		//! into 'uint16_t measuringInterval[NUM_SENSORS]'
+		void readSensorMeasuringIntervalTimesFromEEPROM();
 		
 		//! Variable : the averaged temperature value
 		/*!
@@ -212,7 +222,7 @@ class SensorUtils
 		//!
 		/*! Stores the individual measuring interval times of the sensors
 		 */
-		uint16_t measuringInterval[8];
+		uint16_t measuringInterval[NUM_SENSORS];
 		
 		//!
 		/*! Stores the biggest measuring interval time of all the active sensors

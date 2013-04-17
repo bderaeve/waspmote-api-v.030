@@ -20,6 +20,7 @@
 void RTCUtils::reinitialize()
 {
 	RTC.setTime("00:00:00:00:00:00:00");
+	getTime();
 		#ifdef FINAL_DEBUG_NODE
 			COMM.sendMessage(xbeeZB.GATEWAY_MAC, "RTC has been reset");	
 		#endif

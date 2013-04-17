@@ -218,7 +218,7 @@ class PAQUtils
 		
 		bool areSameMACAddresses(uint8_t *, uint8_t *);
 		
-		void testComm(uint8_t * , uint8_t, const char *);
+		void testComm(uint8_t * , uint8_t, char *);
 		/*
 		void testComm2(uint8_t *, uint8_t);
 		void testComm3(uint8_t * , uint8_t, const char *);
