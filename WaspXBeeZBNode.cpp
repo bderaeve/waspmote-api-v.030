@@ -18,15 +18,6 @@
 
 WaspXBeeZBNode::WaspXBeeZBNode()
 {
-	panid[0] = 0x00;
-	panid[1] = 0x00;
-	panid[2] = 0x00;
-	panid[3] = 0x00;
-	panid[4] = 0x00;
-	panid[5] = 0x00;
-	panid[6] = 0x00;
-	panid[7] = 0x0B;
-
 	GATEWAY_MAC[0] = 0x00; //0x00;  //When GATEWAY == COORDINATOR use 0
 	GATEWAY_MAC[1] = 0x00; //0x13;
 	GATEWAY_MAC[2] = 0x00; //0xA2;
@@ -36,29 +27,38 @@ WaspXBeeZBNode::WaspXBeeZBNode()
 	GATEWAY_MAC[6] = 0x00; //0x73;
 	GATEWAY_MAC[7] = 0x00; //0x74;
 	
+	ACCEPTED_GATEWAY_BJORN[0] = 0x40;  //Node A;
+	ACCEPTED_GATEWAY_BJORN[1] = 0x69;
+	ACCEPTED_GATEWAY_BJORN[2] = 0x73;
+	ACCEPTED_GATEWAY_BJORN[3] = 0x7A;
+	
+	ACCEPTED_GATEWAY_ROEL[0] = 0x40;  //Gateway in use;
+	ACCEPTED_GATEWAY_ROEL[1] = 0x69;
+	ACCEPTED_GATEWAY_ROEL[2] = 0x73;
+	ACCEPTED_GATEWAY_ROEL[3] = 0x74;
+	
+	activeSensorMask = physicalSensorMask = 0x08;
+	setPhysicalSensorMaskLength();
+	setActiveSensorMaskLength();
+	
 	nrOfPanics = 0;
 	defaultOperation = true;
+	inNetwork = false;
+	notInNetworkNrMinutesToSleep = 1;
+	
 	powerPlan = HIGHPERFORMANCE;
 	sleepMode = HIBERNATE;
 	deviceRole = ROUTER;
 	
 	#ifdef HIBERNATE_DEBUG_V3
-		//defaultTime2WakeInt = 1;   //"00:00:00:10"
-		defaultTime2WakeInt = 6;   //"00:00:01:00"
+		defaultTime2WakeInt = 6;   //"00:00:00:10"
+		//defaultTime2WakeInt = 6;   //"00:00:01:00"
 	#else
-		defaultTime2WakeInt = 90;	//"00:00:15:00";
+		defaultTime2WakeInt = 4;	//"00:00:15:00";
 	#endif
-	RTCUt.convertTime2Char(defaultTime2WakeInt, 0, defaultTime2WakeStr);	
-	
-	testVar = 0;
+	/// The timeToWakeUp is set in COMM.setupXBee()
 }
 
-
-void WaspXBeeZBNode::testFunc()
-{
-	testVar++;
-
-}
 
 /**************************************************************************************
   *
@@ -99,17 +99,71 @@ void WaspXBeeZBNode::hibernateInterrupt()
 	///////////////////////////////////////////////
 	// 4. Find and set next time to wake
 	///////////////////////////////////////////////	
-	if(defaultOperation)
-		RTCUt.setNextTimeWhenToWakeUpViaOffset(defaultTime2WakeInt);
-	else
-		findNextTime2Wake(HIBERNATE);
 	
+	if(!inNetwork)
+	{
+		RTCUt.setNextTimeWhenToWakeUpViaOffset(defaultTime2WakeInt * notInNetworkNrMinutesToSleep);
+	}
+	else
+	{
+		if(defaultOperation)
+			RTCUt.setNextTimeWhenToWakeUpViaOffset(defaultTime2WakeInt);
+		else
+			findNextTime2Wake(HIBERNATE);
+			
+		notInNetworkNrMinutesToSleep = 1;	
+	}
 	// PWR.HIBERNATE DOES NOT ACCEPT OWN LIBELIUM ALARM FUNCTIONS...
 	
 	//USB.print("setAlarm1 30s offset:");
 	//RTC.setAlarm1(0,0,0,50,RTC_OFFSET,RTC_ALM1_MODE2);
 	//USB.println(RTC.getAlarm1());
 	//PWR.hibernate(RTC.getAlarm1(), RTC_ABSOLUTE, RTC_ALM1_MODE3);
+}
+
+
+uint8_t WaspXBeeZBNode::retryJoining()
+{
+		#ifdef FINAL_DEBUG
+			USB.print("\nretryJoining()\n");
+		#endif		
+	
+	uint8_t error = 0;
+	getNodeIdentifier();
+	getPAN();
+	COMM.retryJoining = true;
+	error = COMM.setupXBee(PAN_ID, (DeviceRole) deviceRole, GATEWAY_MAC,(SleepMode) sleepMode, nodeID);
+	
+	if(error == 0)
+	{
+		inNetwork = true;
+		COMM.retryJoining = false;
+	}	
+	return error;
+}
+
+
+void WaspXBeeZBNode::setAlarmForRouter()
+{
+	if(defaultOperation)
+	{
+		RTCUt.setNextTimeWhenToMeasureInAlarm1(defaultTime2WakeInt);
+		USB.println(RTC.getAlarm1());
+	}
+	else
+	{
+		if(!posInArray) 
+		{
+			RTCUt.setNextTimeWhenToWakeUpViaOffset(time2wValuesArray[posInArray]);
+			USB.println(RTC.getAlarm1());
+		}
+		else
+		{
+			RTCUt.setNextTimeWhenToWakeUpViaOffset(time2wValuesArray[posInArray] - time2wValuesArray[posInArray-1]);				
+			USB.println(RTC.getAlarm1());
+		}
+	}
+		
 }
 
 
@@ -132,31 +186,62 @@ uint8_t WaspXBeeZBNode::storeValue(int address, uint8_t value)
 void WaspXBeeZBNode::readCoreVariablesFromEEPROM()
 {
 	//SENSOR_MASKS:  in case of incoming requests
-	physicalSensorMask = ( (unsigned int) Utils.readEEPROM(PHY_MASK_H) * 256)
-		+ Utils.readEEPROM(PHY_MASK_L);
-	physicalSensorMaskLength = Utils.readEEPROM(PHY_MASK_LEN);
-	activeSensorMask = ( (unsigned int) Utils.readEEPROM(ACT_MASK_H) * 256)
-		+ Utils.readEEPROM(ACT_MASK_L);	
-	activeSensorMaskLength = Utils.readEEPROM(ACT_MASK_LEN);
-
-	//SLEEP
-	defaultOperation = Utils.readEEPROM(OPERATING_MODE);
-		#ifdef HIBERNATE_DEBUG_V3
-			USB.print("defaultOp "); USB.println( (int) defaultOperation );
-		#endif
-	
-	if(defaultOperation)
+	inNetwork = Utils.readEEPROM(IN_NETWORK);
+	if(!inNetwork)
 	{
+		notInNetworkNrMinutesToSleep = Utils.readEEPROM(NOT_IN_NETWORK_NR_MINUTES_TO_SLEEP);
+			#ifndef HIBERNATE_DEBUG_V2
+				if(notInNetworkNrMinutesToSleep < 256)  notInNetworkNrMinutesToSleep++;		
+				USB.print("\nnrMins ");  USB.println( (int) notInNetworkNrMinutesToSleep );
+			#endif
 		defaultTime2WakeInt = ( (unsigned int) Utils.readEEPROM(DEFAULT_T2W_H)*256)
-			+ Utils.readEEPROM(DEFAULT_T2W_L);
-		#ifdef HIBERNATE_DEBUG_V3
-			USB.print("defaultT2w "); USB.println( (int) defaultTime2WakeInt );
-		#endif			
+				+ Utils.readEEPROM(DEFAULT_T2W_L);				
 	}
+	else
+	{
+		physicalSensorMask = ( (unsigned int) Utils.readEEPROM(PHY_MASK_H) * 256)
+			+ Utils.readEEPROM(PHY_MASK_L);
+		physicalSensorMaskLength = Utils.readEEPROM(PHY_MASK_LEN);
+		activeSensorMask = ( (unsigned int) Utils.readEEPROM(ACT_MASK_H) * 256)
+			+ Utils.readEEPROM(ACT_MASK_L);	
+		activeSensorMaskLength = Utils.readEEPROM(ACT_MASK_LEN);
 
-	powerPlan = (PowerPlan) Utils.readEEPROM(POWERPLAN);
-	sleepMode = (SleepMode) Utils.readEEPROM(SLEEPMODE);	
+		//SLEEP
+		defaultOperation = Utils.readEEPROM(OPERATING_MODE);
+			#ifdef HIBERNATE_DEBUG_V3
+				USB.print("defaultOp "); USB.println( (int) defaultOperation );
+			#endif
+		
+		if(defaultOperation)
+		{
+			defaultTime2WakeInt = ( (unsigned int) Utils.readEEPROM(DEFAULT_T2W_H)*256)
+				+ Utils.readEEPROM(DEFAULT_T2W_L);
+			#ifdef HIBERNATE_DEBUG_V3
+				USB.print("defaultT2w "); USB.println( (int) defaultTime2WakeInt );
+			#endif			
+		}
+
+		powerPlan = (PowerPlan) Utils.readEEPROM(POWERPLAN);
+		sleepMode = (SleepMode) Utils.readEEPROM(SLEEPMODE);
+	}
 }
+
+
+void WaspXBeeZBNode::storeProgramParametersToEEPROM()
+{
+	inNetwork == Utils.readEEPROM(IN_NETWORK) ? : storeValue(IN_NETWORK, inNetwork);
+	notInNetworkNrMinutesToSleep == Utils.readEEPROM(NOT_IN_NETWORK_NR_MINUTES_TO_SLEEP) ? : storeValue(NOT_IN_NETWORK_NR_MINUTES_TO_SLEEP, notInNetworkNrMinutesToSleep);
+	defaultTime2WakeInt/256 == Utils.readEEPROM(DEFAULT_T2W_H) ? : storeValue(DEFAULT_T2W_H, defaultTime2WakeInt/256);
+	defaultTime2WakeInt%256 == Utils.readEEPROM(DEFAULT_T2W_L) ? : storeValue(DEFAULT_T2W_L, defaultTime2WakeInt%256);
+	activeSensorMask/256 == Utils.readEEPROM(ACT_MASK_H) ? : storeValue(ACT_MASK_H, activeSensorMask/256);
+	activeSensorMask%256 == Utils.readEEPROM(ACT_MASK_L) ? : storeValue(ACT_MASK_L, activeSensorMask%256);
+	physicalSensorMask/256 == Utils.readEEPROM(PHY_MASK_H) ? : storeValue(PHY_MASK_H, physicalSensorMask/256);
+	physicalSensorMask%256 == Utils.readEEPROM(PHY_MASK_L) ? : storeValue(PHY_MASK_L, physicalSensorMask%256);
+	
+	defaultOperation == Utils.readEEPROM(OPERATING_MODE) ? : storeValue(OPERATING_MODE, defaultOperation);
+	sleepMode == (SleepMode) Utils.readEEPROM(SLEEPMODE) ? : storeValue(SLEEPMODE, sleepMode);
+	powerPlan == (PowerPlan) Utils.readEEPROM(POWERPLAN) ? : storeValue(POWERPLAN, powerPlan);		
+}	
 
 
 void WaspXBeeZBNode::setGatewayMacAddress(uint8_t address[8])
@@ -188,7 +273,7 @@ uint8_t WaspXBeeZBNode::getDeviceRole()
 	uint8_t error = 2;
 	
 	error = getDeviceType();
-	deviceRole = deviceType[3];
+	deviceRole = (DeviceRole) deviceType[3];
 	
 	return error;
 }  
@@ -265,7 +350,7 @@ uint8_t WaspXBeeZBNode::setActiveSensorMaskWithTimes(uint16_t count, ...)
 			#endif
 			
 		if(error)
-			break;
+			return error; //break;
 	}
 
 	storeValue(ACT_MASK_H, activeSensorMask/256);	
@@ -282,70 +367,54 @@ uint8_t WaspXBeeZBNode::setActiveSensorMaskWithTimes(uint16_t count, ...)
 	
 	return error;
 }
-/*
-uint8_t WaspXBeeZBNode::setActiveSensorTimes(uint16_t count, ...)
-{
-	va_list arguments;
-	va_start (arguments, count);
-	
-	uint16_t * times = (uint16_t *) calloc(count, sizeof(uint16_t));
-	
-	for(uint8_t i = 0; i<count; i++)
-		times[i] = va_arg( arguments, uint16_t );
-	
-	qsort(times, count, sizeof(uint16_t), compare);
-	
-	createAndSaveNewTime2SleepArray(times);
-	
-	free(times);
-	times = NULL;
-}
-*/
 
-void WaspXBeeZBNode::setActiveSensorMask(uint8_t * mask)
-{
-	activeSensorMask = (unsigned int) mask[0]*256 + mask[1];
-	
-	storeValue(ACT_MASK_H, mask[0]);	
-	storeValue(ACT_MASK_L, mask[1]);
 
+uint8_t WaspXBeeZBNode::setActiveSensorMask(uint8_t * mask)
+{
+	uint8_t error = 2;
+	uint16_t tempMask = 0;
+
+	tempMask = (unsigned int) mask[0]*256 + mask[1];
+	
+	if(tempMask &= ~physicalSensorMask)
+		return error = 1;
+	
+	activeSensorMask = tempMask;
+	
+	mask[0] == Utils.readEEPROM(ACT_MASK_H) ? : storeValue(ACT_MASK_H, mask[0]);	
+	mask[1] == Utils.readEEPROM(ACT_MASK_L) ? : storeValue(ACT_MASK_L, mask[1]);
+	
 	setActiveSensorMaskLength();
+	
+	return error = 0;
 }
 
 
-void WaspXBeeZBNode::setPhysicalSensorMask(uint8_t * mask)
+uint8_t WaspXBeeZBNode::setPhysicalSensorMask(uint8_t * mask)
 {
-	physicalSensorMask =  (unsigned int) (mask[0]*256 + mask[1]);
+	uint8_t error = 2;
+	uint16_t tempMask = 0;
+
+	tempMask = (unsigned int) (mask[0]*256 + mask[1]);
+	
+	if(tempMask &= ~SensUtils.acceptedSensorMask)
+		return error = 1;	
+	
+	physicalSensorMask =  tempMask;
 		
-	storeValue(PHY_MASK_H, mask[0]);	
-	storeValue(PHY_MASK_L, mask[1]);
+	mask[0] == Utils.readEEPROM(PHY_MASK_H) ? : storeValue(PHY_MASK_H, mask[0]);	
+	mask[0] == Utils.readEEPROM(PHY_MASK_L) ? : storeValue(PHY_MASK_L, mask[1]);
 	
 	setPhysicalSensorMaskLength();
+	
+	return error = 0;
 }
-
-
 
 
 void WaspXBeeZBNode::setPhysicalSensorMaskLength()
 {
 	physicalSensorMaskLength = getMaskLength(physicalSensorMask);
-/*
-	uint16_t indicator = 32768; // 2^15
-	physicalSensorMaskLength = 16;
-	bool stop = false;
-	uint8_t i = 0;
-	
-	while( i<16 && !stop)
-	{
-		if(indicator & physicalSensorMask)
-			stop = true;
-		else
-			physicalSensorMaskLength--;
-		
-		i++;
-		indicator >>= 1;
-	}
-*/	
+
 	storeValue(PHY_MASK_LEN, physicalSensorMaskLength);
 	
 	#ifdef NODE_DEBUG
@@ -370,6 +439,7 @@ void WaspXBeeZBNode::setActiveSensorMaskLength()
 	#endif
 }
 
+
 uint8_t WaspXBeeZBNode::getMaskLength(uint16_t mask)
 {
 	uint16_t indicator = 32768; // 2^15
@@ -390,6 +460,7 @@ uint8_t WaspXBeeZBNode::getMaskLength(uint16_t mask)
 	
 	return length;
 }
+
 
 uint8_t WaspXBeeZBNode::getNrActiveSensors(uint16_t mask)
 {
@@ -473,187 +544,6 @@ void WaspXBeeZBNode::printSensorMask(uint16_t mask)
 }
 
 
-/**************************************************************************************
-  *
-  * DEEP SLEEP / HIBERNATE UTILITIES
-  *
-  *************************************************************************************/
-void WaspXBeeZBNode::enterLowPowerMode(SleepMode sm, uint16_t howLong)
-{
-	if(sm == HIBERNATE)
-	{
-		RTCUt.getTime();
-		RTCUt.setNextTimeWhenToWakeUpViaOffset(howLong);
-		PWR.hibernate(RTCUt.nextTime2WakeUpChar, RTC_ABSOLUTE, RTC_ALM1_MODE3);
-	}
-	else
-	{	
-		for(uint16_t i=0; i<howLong; i++) 
-		{
-			PWR.sleep(WTD_8S, ALL_OFF);
-			PWR.sleep(WTD_2S, ALL_OFF);
-		}
-		
-		if( intFlag & WTD_INT )  //"can be used as out of sleep interrupt"
-        {
-			intFlag &= ~(WTD_INT);
-        }
-      	USB.begin();
-			#ifdef HIBERNATE_DEBUG_V2
-				USB.print("out sleep");
-			#endif
-	}	
-}
-
- 
-//! This function REQUIRES that the correct time to sleep (absolute for hibernate and deep sleep)
-//! or sleep time (offset for sleep) is known in either RTCUt.nextTime2WakeUpChar (hibernate) or in
-//! time2wValuesArray[posArray] (sleep/deep). 
-void WaspXBeeZBNode::enterLowPowerMode(SleepMode sm) ///AT END OF LOOP()
-{
-	if(sm == HIBERNATE)
-	{
-			#ifdef HIBERNATE_DEBUG_V2
-				USB.print("\n\nEntering HIBERNATE at ");
-				USB.println(RTC.getTime());
-				USB.print("till ");
-				USB.println(RTCUt.nextTime2WakeUpChar);
-			#endif
-			
-		defaultOperation == Utils.readEEPROM(OPERATING_MODE) ? : storeValue(OPERATING_MODE, defaultOperation);
-		sleepMode == (SleepMode) Utils.readEEPROM(SLEEPMODE) ? : storeValue(SLEEPMODE, sleepMode);
-		powerPlan == (PowerPlan) Utils.readEEPROM(POWERPLAN) ? : storeValue(POWERPLAN, powerPlan);			
-	
-		PWR.hibernate(RTCUt.nextTime2WakeUpChar, RTC_ABSOLUTE, RTC_ALM1_MODE3);
-		/// After hibernate we start in WaspXBeeZBNode::hibernateInterrupt()
-	}
-	else if(sm == DEEPSLEEP)  /// CANNOT BE COMBINED WITH HIBERNATE
-	{		
-			#ifdef DEEPSLEEP_DEBUG
-				USB.print("\nentering deepsleep till "); USB.print( RTCUt.nextTime2WakeUpChar );
-			#endif
-		PWR.deepSleep(RTCUt.nextTime2WakeUpChar, RTC_ABSOLUTE, RTC_ALM1_MODE3, ALL_OFF);
-		
-		RTC.ON();
-		RTCUt.getTime();
-		RTC.setMode(RTC_OFF,RTC_NORMAL_MODE);  //this will save power
-			
-		USB.begin();
-			#ifdef DEEPSLEEP_DEBUG
-				USB.print("awake at "); USB.println(RTC.getTime());
-			#endif
-		if(defaultOperation)
-		{
-			RTCUt.setNextTimeWhenToWakeUpViaOffset(defaultTime2WakeInt);
-		}
-		else
-		{
-				#ifdef DEEPSLEEP_DEBUG
-					USB.print("out of sleep, posInArray = ");
-					USB.println( (int) posInArray );
-					USB.print("next t2s = ");
-					USB.println( (int) time2wValuesArray[posInArray]);
-					USB.println( (int) time2wValuesArray[posInArray + 1]);
-					USB.println( (int) (time2wValuesArray[posInArray + 1] - time2wValuesArray[posInArray]) );
-				#endif
-			findNextTime2Wake(DEEPSLEEP);
-			updatePosInArray();	
-		}
-		/// GOTO "device enters loop"
-	}
-	else if(sm == SLEEP)
-	{
-		/// TODO: CALCULATE MORE ACCURATE (ATM OFFSET IS USED)
-		///       WDT CANNOT USE ABSOLUTE T2WAKE VALUE FROM RTC
-		if(defaultOperation)
-		{
-				#ifdef SLEEP_DEBUG
-					USB.print("defaultT2w ");
-					USB.println( (int) defaultTime2WakeInt);
-				#endif				
-			for(uint16_t i=0; i<defaultTime2WakeInt; i++) 
-			{
-				PWR.sleep(WTD_8S, ALL_OFF);
-				PWR.sleep(WTD_2S, ALL_OFF);
-			}			
-		}
-		else
-		{
-			uint16_t time = 0;
-			time = 	time2wValuesArray[posInArray+1] - time2wValuesArray[posInArray];
-				#ifdef SLEEP_DEBUG
-					USB.print("t2Sleep");
-					USB.println( (int) time);
-				#endif		
-			for(uint16_t i=0; i<time; i++) 
-			{
-				PWR.sleep(WTD_8S, ALL_OFF);
-				PWR.sleep(WTD_2S, ALL_OFF);
-			}
-		}
-		
-      	USB.begin();
-			#ifdef SLEEP_DEBUG
-				USB.print("out sleep");
-			#endif		
-	
-		if( intFlag & WTD_INT )  //"can be used as out of sleep interrupt"
-        {
-			intFlag &= ~(WTD_INT);
-			if(!defaultOperation) updatePosInArray();
-			
-				#ifdef SLEEP_DEBUG
-					USB.print("posInArray ");
-					USB.println( (int) posInArray );
-				#endif
-			
-			/// GOTO "device enters loop"
-        }
-	}	
-}
- 
-
- 
-void WaspXBeeZBNode::hibernate()
-{
-		#ifdef HIBERNATE_DEBUG_V1
-			USB.print("\n\nEntering HIBERNATE at ");
-			USB.println(RTC.getTime());
-			USB.print("for ");
-			USB.println(xbeeZB.defaultTime2WakeStr);
-		#endif
-		
-		#ifdef HIBERNATE_DEBUG_V2
-			USB.print("\n\nEntering HIBERNATE at ");
-			USB.println(RTC.getTime());
-			USB.print("till ");
-			USB.println(RTCUt.nextTime2WakeUpChar);
-		#endif
-		
-		
-	///////////////////////////////////////
-	// 1. Store operating variables
-	///////////////////////////////////////		
-	
-	defaultOperation == Utils.readEEPROM(OPERATING_MODE) ? : storeValue(OPERATING_MODE, defaultOperation);
-	sleepMode == (SleepMode) Utils.readEEPROM(SLEEPMODE) ? : storeValue(SLEEPMODE, sleepMode);
-	powerPlan == (PowerPlan) Utils.readEEPROM(POWERPLAN) ? : storeValue(POWERPLAN, powerPlan);
-	
-	
-	if(defaultOperation)
-	{
-
-	}
-	else
-	{
-		//store more: these values are stored only once via changeSensorFrequencies()
-	}
-	
-	PWR.hibernate(RTCUt.nextTime2WakeUpChar, RTC_ABSOLUTE, RTC_ALM1_MODE3);
-		/// PWR.hibernate(RTC.getAlarm1(),RTC_ABSOLUTE,RTC_ALM1_MODE3);					NOT WORKING
-		/// PWR.hibernate(xbeeZB.defaultTime2WakeStr, RTC_OFFSET, RTC_ALM1_MODE2);		NOT WORKING
-}
-
 void WaspXBeeZBNode::findNextTime2Wake(SleepMode sm)  
 {
 	switch(sm)
@@ -728,11 +618,6 @@ void WaspXBeeZBNode::findNextTime2Wake(SleepMode sm)
 	
 		}
 		
-		
-		
-		
-		
-
 		default:
 			break;
 	}	
@@ -788,10 +673,14 @@ uint8_t WaspXBeeZBNode::changeSensorFrequencies(char * array)
 {
 	uint8_t error = 2;
 	uint16_t indicator = 1;
-	uint8_t pos = 3;
+	uint8_t pos = 2;
 	uint16_t sensorsToDisableMask = 0;
 	uint16_t sensorsToChangeMask = ( (unsigned int) array[0]*256) + array[1];
 	//uint8_t maskLength = getMaskLength(sensorsToChangeMask);
+	
+			#ifdef CH_SENS_FREQ_REQ_DEBUG
+				USB.println( (int) sensorsToChangeMask);
+			#endif
 	
 	// i indicates which sensor
 	// pos indicates where the sensor's time is in the array data, starting at 3
@@ -801,8 +690,9 @@ uint8_t WaspXBeeZBNode::changeSensorFrequencies(char * array)
 		{
 			error = 0;
 			//calculate received time
-			SensUtils.measuringInterval[i] = ( (unsigned int) array[pos++]*256) + array[pos];
-			pos++;
+			SensUtils.measuringInterval[i] = ( (unsigned int) array[pos]*256) + array[pos+1];
+			///USB.println( (int) SensUtils.measuringInterval[i]);
+			pos+=2;
 			
 			//if 0 set the sensor to be disabled in the active sensor mask.
 			if(SensUtils.measuringInterval[i] == 0)
@@ -825,15 +715,11 @@ uint8_t WaspXBeeZBNode::changeSensorFrequencies(char * array)
 				}
 			}
 		}
-		else
-		{
-			if( indicator & activeSensorMask )
-				SensUtils.measuringInterval[i] = defaultTime2WakeInt;
-			else
-				SensUtils.measuringInterval[i] = 0;
-		}
+
 		indicator <<= 1;
 	}
+	
+	setActiveSensorMaskLength();
 	
 	if( error == 2 )
 	{
@@ -889,6 +775,7 @@ uint8_t WaspXBeeZBNode::changeSensorFrequencies(char * array)
 		storeValue(OPERATING_MODE, defaultOperation); 
 	}
 	
+	USB.println("\nDONE");
 	return error; //if not zero send error message in PAQUtils, else send CH_SENS_FREQ_RES
 }
 
@@ -903,7 +790,7 @@ uint8_t WaspXBeeZBNode::setNewDifferentSleepTimes(bool firstCall)
 {
 	uint8_t error = 2, j = 0;
 	uint16_t * sortedTimes = (uint16_t *) calloc(activeSensorMaskLength, sizeof(uint16_t));
-	
+	uint16_t indicator = 1;
 	
 	if(firstCall || sleepMode == HIBERNATE)
 	{
@@ -934,12 +821,16 @@ uint8_t WaspXBeeZBNode::setNewDifferentSleepTimes(bool firstCall)
 	{
 		if(SensUtils.measuringInterval[i] > 0)
 		{
-			sortedTimes[j] = SensUtils.measuringInterval[i];
-				#ifdef NODE_DEBUG_V2
-					USB.println( (int) sortedTimes[j]);
-				#endif
-			j++;
+			if(indicator & activeSensorMask)
+			{
+				sortedTimes[j] = SensUtils.measuringInterval[i];
+					#ifdef NODE_DEBUG_V2
+						USB.println( (int) sortedTimes[j]);
+					#endif
+				j++;
+			}
 		}
+		indicator <<= 1;
 	}
 	
 	//sort the temporary array:
@@ -1014,7 +905,7 @@ uint8_t WaspXBeeZBNode::setNewDifferentSleepTimes(bool firstCall)
 		///////////////////////////////////
 		// 3. STORE TO EEPROM FOR HIBERNATE
 		///////////////////////////////////
-		if(firstCall & sleepMode == HIBERNATE)
+		if(firstCall && sleepMode == HIBERNATE)
 		{
 			//storeValue(MIN_SENS_TIME_L, SensUtils.minTime%256);	storeValue(MIN_SENS_TIME_H, SensUtils.minTime/256);
 			//storeValue(MAX_SENS_TIME_L, SensUtils.maxTime%256);	storeValue(MAX_SENS_TIME_H, SensUtils.maxTime/256);
@@ -1040,7 +931,6 @@ uint8_t WaspXBeeZBNode::setNewDifferentSleepTimes(bool firstCall)
 void WaspXBeeZBNode::createAndSaveNewTime2SleepArray(uint16_t * sortedTimes)
 {
 	uint8_t sensorNr = 0, factor = 0;
-	//time2wValuesArray = (uint16_t *) calloc(MAX_DATA_PER_SENSOR*nrActivatedSensors, sizeof(uint16_t));
 	lengthArray = 0;
 	uint16_t maxInArray = 0,  pos_eeprom = 0, eeprom_offset = 0;
 	uint16_t newPos = 0; 
@@ -1288,6 +1178,67 @@ uint16_t WaspXBeeZBNode::calculateMaxNrElementsForEEPROMArray(uint16_t * sortedT
 	return LCM;
 }	
 
+
+void WaspXBeeZBNode::testMemory()
+{
+	char str[6];
+	str[0] = 'a';
+	str[1] = 'b';
+	str[2] = 'c';
+	str[3] = 'd';
+	str[4] = 'e';
+	str[5] = '\0';
+	
+	USB.println("start");
+	USB.println(str);
+	USB.println(mess);
+	USB.println("abcd");
+	USB.println(freeMemory());
+	USB.println("kdfjmqioimeqfjqkfjekjfejfkedfjkfj");
+	USB.println(freeMemory());
+	USB.println("kdfjmqioimeqfjqkfjekjfejfkedfjkfa");
+	USB.println(freeMemory());
+	USB.println("kdfjmqioimeqfjqkfjekjfejfkedfjkfb");
+	USB.println("kdfjmqioimeqfjqkfjekjfejfkedfjkfc");
+	USB.println(freeMemory());
+	USB.println("kdfjmqioimeqfjqkfjekjfejfkedfjkfd");
+	USB.println("kdfjmqioimeqfjqkfjekjfejfkedfjkfe");
+	USB.println("kdfjmqioimeqfjqkfjekjfejfkedfjkff");
+	USB.println("kdfjmqioimeqfjqkfjekjfejfkedfjkfg");
+	USB.println("end");
+	USB.println(freeMemory());
+}
+
+
+void WaspXBeeZBNode::testMemory2()
+{
+	char str[5] = {'t','e','s','t', '\0'};
+	char st[5] = "test";
+	USB.println(str);
+	USB.println("boe");
+	USB.println("bla");
+	USB.println("blo");
+	USB.println("kzd");
+	USB.println("ezferif");
+}
+
+
+void WaspXBeeZBNode::testMemory3()
+{
+	//char * bla = (char *) calloc(20, sizeof(char));
+	//bla = str(blablaxrtkks);
+	//USB.println(bla);
+	//USB.println(xstr
+	//free(bla);
+	//bla = NULL;
+	
+
+	//char buffer[8];
+
+	//strcpy_P(buffer, (PGM_P)pgm_read_word(&(blabla)));
+
+	//USB.println(buffer);
+}
 /* Greatest Common Divisor */
 /*static*/ int gcd( int a, int b )
 {
@@ -1320,198 +1271,6 @@ uint16_t toUint16_t(char * ar)
 	return  ( (uint16_t) ((  ar[0] ) * 256 ) + (ar[1]) );
 }
 
-/*
-void WaspXBeeZBNode::createAndSaveNewTime2SleepArray(uint16_t * sortedTimes)
-{
-	uint8_t sensorNr = 0, factor = 0;
-	/*uint16_t * time2wValuesArray = (uint16_t *) calloc(MAX_DATA_PER_SENSOR*nrActivatedSensors, sizeof(uint16_t));
-	lengthArray = 1;
-	/*uint16_t * sensMultiplier = (uint16_t *) calloc(nrActivatedSensors, sizeof(uint16_t));
-	uint16_t maxInArray = 0,  pos_eeprom = 0, eeprom_offset = 0;
-	
-	for(uint16_t i=0; i<nrActivatedSensors; i++)  //memset(sensMultiplier, 1, nrActivatedSensors);  doesn't work
-		sensMultiplier[i] = 1;
-	
-	
-	/////////////////////////////////
-	// 1. CALCULATE LCM
-	/////////////////////////////////
-	LCM = calculateMaxNrElementsForEEPROMArray(sortedTimes);
-		#ifdef MATH_DEBUG
-			USB.print("LCM = "); USB.println( (int) LCM);
-		#endif
-	if( LCM/sortedTimes[0] < MAX_DATA_PER_SENSOR )
-	{
-		arrayReadMode = EASY;
-		factor = 1;
-	}
-	else
-	{
-		arrayReadMode = DIFFICULT;
-		factor = calculateMaxNrElementsForEEPROMArray(sortedTimes) / MAX_DATA_PER_SENSOR;
-	}
-	
-		#ifdef MATH_DEBUG
-			USB.print("\nsortedTimes: ");
-			qsort(sortedTimes, nrActivatedSensors, sizeof(uint16_t), compare);
-			for(uint16_t i=0; i<nrActivatedSensors; i++)
-			{
-				USB.print(sortedTimes[i]);
-			}
-			USB.print("\nsensMultiplier: ");
-			for(uint16_t i=0; i<nrActivatedSensors; i++)
-			{
-				USB.print(sensMultiplier[i]);
-			}
-		#endif
-	
-	/////////////////////////////////
-	// 2. CALCULATE VALUES
-	/////////////////////////////////
-	pos = 0;
-		//FOR EACH ACTIVE SENSOR:
-		for(sensorNr = 0; sensorNr<nrActivatedSensors; sensorNr++)
-		{
-			
-			bool mayBeAdded = false;
-			//FOR LOWEST TIME VALUES
-			if( sensorNr == 0 )  
-			{
-				while( (pos < MAX_DATA_PER_SENSOR) && (sortedTimes[0] * sensMultiplier[0] <= LCM ) )//sortedTimes[nrActivatedSensors-1]) )
-				{
-					time2wValuesArray[pos] = sortedTimes[0] * sensMultiplier[0];
-					pos++;  sensMultiplier[0]++;
-					if( sortedTimes[0] * sensMultiplier[0] > LCM )//sortedTimes[nrActivatedSensors-1] )
-					{
-						maxInArray = sortedTimes[nrActivatedSensors-1];
-						break;
-					}
-					else if( pos == MAX_DATA_PER_SENSOR)
-					{
-						maxInArray = time2wValuesArray[--pos];
-					}
-				}
-				#ifdef MATH_DEBUG_EXTENDED
-					USB.print("nrSensor=0: ");
-					for(uint16_t i=0; i<MAX_DATA_PER_SENSOR;i++)
-					{
-						USB.print(time2wValuesArray[i]);
-						USB.print(" ");
-					}
-					USB.print("\n\n");
-				#endif
-			}
-			else
-			{
-				USB.print("pos "); USB.println( (int) pos);
-				USB.print("sensNr "); USB.println( (int) sensorNr);
-				while( (sortedTimes[sensorNr] * sensMultiplier[sensorNr] <= LCM ) )//maxInArray ) )
-				{
-				
-					time2wValuesArray[pos] = sortedTimes[sensorNr] * sensMultiplier[sensorNr];
-					pos++;  sensMultiplier[sensorNr]++;
-					
-					//if( sortedTimes[sensorNr] * sensMultiplier[sensorNr] > sortedTimes[nrActivatedSensors-1] )
-					//{
-					//	break;
-					//}
-					
-					#ifdef MATH_DEBUG_EXTENDED
-						USB.print("nrSensor=0: ");
-						for(uint16_t i=0; i<MAX_DATA_PER_SENSOR;i++)
-						{
-							USB.print(time2wValuesArray[i]);
-							USB.print(" ");
-						}
-						USB.print("\n\n");
-					#endif
-				}
-			}
-		}
 
-		#ifdef MATH_DEBUG_EXTENDED
-			USB.print("\nFULLtime2wValuesArray: ");
-			for(uint16_t i=0; i<pos; i++)
-			{
-				USB.print(time2wValuesArray[i]);
-				USB.print(" ");
-			}
-		#endif
-		
-	////////////////////////////////////
-	// 3. SORT & REMOVE DUPLICATE VALUES
-	////////////////////////////////////
-			
-		// 1. Sort array
-		qsort(time2wValuesArray, pos, sizeof(uint16_t), compare);
-			#ifdef MATH_DEBUG
-				USB.print("\nsorted ");
-				for(uint16_t i=0; i<pos; i++)
-					USB.print(time2wValuesArray[i]);
-			#endif
-		
-		 //delete duplicate values and determine array length
-		uint16_t newPos = 0; 
-		lengthArray = 0;
-		for(uint8_t i=1; i<pos; i++)
-		{
-			if(time2wValuesArray[newPos] != time2wValuesArray[i]) 
-			{
-				time2wValuesArray[++newPos] = time2wValuesArray[i];	
-				lengthArray++;
-			}
-		}
-		
-		// 2. Indicate end of array
-		time2wValuesArray[lengthArray] = 0;
-		
-			#ifdef MATH_DEBUG
-				USB.print("\nno duplicates ");
-				for(uint16_t i=0; i<lengthArray; i++)
-				{
-					USB.print(time2wValuesArray[i]);
-					USB.print(" ");
-				}
-			#endif
-	
-	/////////////////////////////////
-	// 4. STORE VALUES
-	/////////////////////////////////	
-	
-		if( sleepMode == HIBERNATE )
-		{
-			eeprom_offset = lengthArray;
-	
-			storeValue(NR_ACTIVATED_SENSORS, nrActivatedSensors);
-			storeValue(ARRAY_READ_MODE, EASY);
-			storeValue(NR_OF_TIMES_STORED_IN_EEPROM, lengthArray);
-			
-			pos_eeprom = START_T2W_VALUES;
-			for(uint16_t i=0; i<lengthArray; i++)
-			{
-					storeValue(pos_eeprom++, time2wValuesArray[i]%256);
-					storeValue(pos_eeprom++, time2wValuesArray[i]/256);
-			}
-			
-			if( mode == DIFFICULT )
-			{
-				//Also save sensor multipliers
-				storeValue(ARRAY_READ_MODE, DIFFICULT);
-				
-				pos_eeprom = FIRST_SENS_MULTIPLIER;
-				for(sensorNr = 0; sensorNr<nrActivatedSensors; sensorNr++)
-				{
-					storeValue(pos_eeprom++, sensMultiplier[sensorNr]%256);
-					storeValue(pos_eeprom++, sensMultiplier[sensorNr]/256);				
-				}
-			}
-		}
-		else // if( sleepmMode == SLEEP || sleepMode == DEEPSLEEP )
-		{
-			//! use pointers from xbeeZB to search the next sleep time
-			posInArray = 0;
-		}
-}
-*/
 
 WaspXBeeZBNode xbeeZB = WaspXBeeZBNode();

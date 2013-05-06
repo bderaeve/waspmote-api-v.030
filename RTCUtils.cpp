@@ -16,6 +16,10 @@
 
 #include <inttypes.h>
 
+RTCUtils::RTCUtils()
+{
+	RTCAwakeAtSeconds = 0;
+}
 
 void RTCUtils::reinitialize()
 {
@@ -24,6 +28,12 @@ void RTCUtils::reinitialize()
 		#ifdef FINAL_DEBUG_NODE
 			COMM.sendMessage(xbeeZB.GATEWAY_MAC, "RTC has been reset");	
 		#endif
+}
+
+void RTCUtils::setTime(const char * time)
+{
+	RTC.setTime(time);
+	getTime();
 }
 
 char * RTCUtils::getTime()
@@ -39,6 +49,10 @@ char * RTCUtils::getTime()
 	return RTC.getTime();
 }
 
+void RTCUtils::setAwakeAtTime()
+{
+	RTCAwakeAtSeconds = RTC.second;
+}
 
 uint8_t RTCUtils::convertTime2Char(uint16_t t2w, uint8_t numDaysIn, char * xbeeZBTime2Wake)
 {
@@ -163,6 +177,42 @@ uint8_t RTCUtils::setNextTimeWhenToWakeUpViaOffset(uint16_t offset)
 				USB.print("nextTime2WakeUpHoursMinsSecsInt = "); USB.println( (int) nextTime2WakeUpHoursMinsSecsInt );
 				USB.print("as char: "); USB.println(nextTime2WakeUpChar);
 			#endif
+			
+		return error;
+}
+
+
+uint8_t RTCUtils::setNextTimeWhenToMeasureInAlarm1(uint16_t offset)
+{
+	uint8_t error = 2;
+	
+	if( offset < 0 )
+		return error;
+	else
+		error = 0;
+		if( offset >= ONE_DAY )
+		{
+			nextDay2WakeUpInt = offset / ONE_DAY;
+			offset -= nextDay2WakeUpInt * ONE_DAY;
+			nextDay2WakeUpInt += RTC.date;
+		}
+		else
+		{
+			nextDay2WakeUpInt = RTC.date;
+			#ifdef RTC_UTILS_DEBUG_V2;
+				USB.print("RTC.date = "); USB.println( (int) RTC.date);
+				//USB.print("RTC.day = "); USB.println( (int) RTC.day); //not this one!
+			#endif
+		}
+		
+		nextTime2WakeUpHoursMinsSecsInt = offset + RTCSecMinHourInt;
+		convertTime2Char(nextTime2WakeUpHoursMinsSecsInt, nextDay2WakeUpInt, nextTime2WakeUpChar);
+			#ifdef RTC_UTILS_DEBUG_V2
+				USB.print("nextTime2WakeUpHoursMinsSecsInt = "); USB.println( (int) nextTime2WakeUpHoursMinsSecsInt );
+				USB.print("as char: "); USB.println(nextTime2WakeUpChar);
+			#endif
+		
+		RTC.setAlarm1(nextTime2WakeUpChar,RTC_OFFSET,RTC_ALM1_MODE2);
 			
 		return error;
 }

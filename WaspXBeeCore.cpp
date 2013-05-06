@@ -26,6 +26,10 @@
 #endif
 
 
+//#define SEND_MEMORY_LEAK_DEBUG
+#define LAME_SOLUTION
+
+
 /*
 Function: Initializes all the global variables that will be used later
 Returns: Nothing
@@ -1894,8 +1898,14 @@ uint8_t WaspXBeeCore::wake()
 */
 uint8_t WaspXBeeCore::sendXBeePriv(struct packetXBee* packet)
 {
+#ifdef SEND_MEMORY_LEAK_DEBUG
+	USB.print("sendXBeePriv1 "); USB.println(freeMemory());
+#endif	
     uint8_t* TX = (uint8_t*) calloc(120,sizeof(uint8_t));
     if( TX==NULL ) return 2;
+#ifdef SEND_MEMORY_LEAK_DEBUG
+	USB.print("sendXBeePriv2 "); USB.println(freeMemory());
+#endif		
     uint8_t counter=0;
     uint8_t checksum=0; 
     long previous=0;
@@ -1924,6 +1934,7 @@ uint8_t WaspXBeeCore::sendXBeePriv(struct packetXBee* packet)
     error_AT=2;
     if(protocol==XBEE_802_15_4)
     {
+#ifdef ENOUGH_MEMORY		
         if(packet->mode==BROADCAST)
         {
             tipo=15;
@@ -2199,9 +2210,9 @@ uint8_t WaspXBeeCore::sendXBeePriv(struct packetXBee* packet)
 				if( millis()-previous < 0 ) previous=millis(); //avoid millis overflow problem
             }
         }
-    
+#endif   
     }
-    
+ 
     if( (protocol==ZIGBEE) || (protocol==DIGIMESH) || (protocol==XBEE_900) || (protocol==XBEE_868) )
     {
         if( (packet->mode==BROADCAST) || (packet->mode==UNICAST) )
@@ -2323,6 +2334,7 @@ uint8_t WaspXBeeCore::sendXBeePriv(struct packetXBee* packet)
         }
         else // Cluster Type
         {
+#ifdef ENOUGH_MEMORY			
             if( (protocol==ZIGBEE) || (protocol==XBEE_868) )
             {
                 if(protocol==XBEE_868)
@@ -2479,34 +2491,53 @@ uint8_t WaspXBeeCore::sendXBeePriv(struct packetXBee* packet)
                 checksum=255-checksum;
                 TX[packet->frag_length+23]=checksum; // setting checksum
             }
+#endif  
         }
-        
+
+#ifdef SEND_MEMORY_LEAK_DEBUG  //OK
+	USB.print("sendXBeePriv3 "); USB.println(freeMemory());
+#endif	 
     // AP = 2
         gen_frame_ap2(packet,TX,protegido,tipo);
+#ifdef SEND_MEMORY_LEAK_DEBUG  //OK
+	USB.print("sendXBeePriv4 "); USB.println(freeMemory());
+#endif				
     // Frame OK
         while(counter<(packet->frag_length+tipo+protegido))
         {
-	    if( uart==UART0 ) XBee.print(TX[counter], BYTE); 
-	    else if( uart==UART1 ) 
-	    {
-		Utils.setMuxGPRS();
-		XBee2.print(TX[counter], BYTE);
-	    }
-            counter++;
+			if( uart==UART0 ) XBee.print(TX[counter], BYTE); 
+			else if( uart==UART1 ) 
+			{
+				Utils.setMuxGPRS();
+				XBee2.print(TX[counter], BYTE);
+			}
+			counter++;
         }
+#ifdef SEND_MEMORY_LEAK_DEBUG  // OK
+	USB.print("sendXBeePriv5 "); USB.println(freeMemory());
+#endif			
         counter=0;    
         command[0]=0xFE;
         error=parse_message(command);
+#ifdef SEND_MEMORY_LEAK_DEBUG  // THE PROBLEM IS IN THE PARSE_MESSAGE METHOD
+	USB.print("sendXBeePriv6 "); USB.println(freeMemory());
+#endif			
         packet->deliv_status=delivery_status;
         packet->discov_status=discovery_status;
         packet->true_naD[0]=true_naD[0];
         packet->true_naD[1]=true_naD[1];
         packet->retries=retries_sending;
     }
+	
     free(TX);
     free(ByteIN);
     TX=NULL;
     ByteIN=NULL;
+	
+#ifdef SEND_MEMORY_LEAK_DEBUG   // 302 bytes lost
+	USB.print("sendXBeePriv7 "); USB.println(freeMemory());
+#endif		
+	
     return error;
 }
 
@@ -2533,7 +2564,9 @@ uint8_t WaspXBeeCore::sendXBee(struct packetXBee* packet)
     uint8_t type=0;
     uint8_t header=0;
 
-  
+#ifdef SEND_MEMORY_LEAK_DEBUG	
+	USB.print("sendXBee1 "); USB.println(freeMemory());		
+#endif	
     it=0;
 
   //FIXME Add max payloads for Cluster type
@@ -2678,8 +2711,13 @@ uint8_t WaspXBeeCore::sendXBee(struct packetXBee* packet)
                 finish=start+packet->frag_length-header-1;
             }
             frag_length=packet->frag_length;
-
+#ifdef SEND_MEMORY_LEAK_DEBUG	
+				USB.print("sendXBee2 "); USB.println(freeMemory());		
+#endif				
             error=sendXBeePriv(packet);
+#ifdef SEND_MEMORY_LEAK_DEBUG				
+				USB.print("sendXBee3 "); USB.println(freeMemory());		
+#endif
             if(error==0)
             {
                 numPackets--;
@@ -4996,13 +5034,40 @@ void WaspXBeeCore::gen_frame_ap2(struct packetXBee* _packet, uint8_t* TX_array, 
 */
 int8_t WaspXBeeCore::parse_message(uint8_t* frame)
 {
+#ifdef SEND_MEMORY_LEAK_DEBUG  // OK
+	USB.print("parse1 "); USB.println(freeMemory());
+#endif	
+
+#ifdef LAME_SOLUTION
+	uint8_t memoryBjorn[MAX_PARSE];	
+#else
     uint8_t* memory = (uint8_t*) calloc(MAX_PARSE,sizeof(uint8_t));
+#endif
+
+#ifndef LAME_SOLUTION
     if( memory==NULL )
     {
-	if( uart==UART0 ) XBee.flush();
-	else if( uart==UART1 ) XBee2.flush();			
-	return -1;
+		#ifdef SEND_MEMORY_LEAK_DEBUG  // 302 BYTES LOST
+			USB.print("memory == null "); USB.println(freeMemory());
+		#endif	
+		if( uart==UART0 ) XBee.flush();
+		else if( uart==UART1 ) XBee2.flush();	
+		
+		return -1;
     }
+#endif
+	#ifdef SEND_MEMORY_LEAK_DEBUG  // 302 BYTES LOST
+		USB.print("parse2 "); USB.println(freeMemory());
+	#endif		
+	#ifndef LAME_SOLUTION
+		#ifdef SEND_MEMORY_LEAK_DEBUG  // 302 BYTES LOST
+
+			free(memory);
+			memory = NULL;
+			USB.print("parse2a "); USB.println(freeMemory());
+		#endif
+	#endif
+
     uint16_t i=0;
     long previous=millis();
     long previous2=millis();
@@ -5020,22 +5085,48 @@ int8_t WaspXBeeCore::parse_message(uint8_t* frame)
     // If a frame was truncated before, we set the first byte
     if( frameNext ){
         frameNext=0;
-        memory[0]=0x7E;
+		#ifndef LAME_SOLUTION
+			memory[0]=0x7E;
+		#else
+			memoryBjorn[0]=0x7E;
+		#endif
         i=1;
         num_mes=1;
     }
 	
     // If it is a TX we have a different behaviour
     if( frame[0]==0xFF ){
-        error_TX=txStatusResponse(memory);
+		#ifndef LAME_SOLUTION
+			error_TX=txStatusResponse(memory);
+		#else
+			error_TX=txStatusResponse(memoryBjorn);
+		#endif
+			#ifdef SEND_MEMORY_LEAK_DEBUG  // ?
+				USB.print("parse3 "); USB.println(freeMemory());
+			#endif	
+		#ifndef LAME_SOLUTION	
         free(memory);
         memory=NULL;
+			#ifdef SEND_MEMORY_LEAK_DEBUG  // ?
+				USB.print("parse3 free mem "); USB.println(freeMemory());
+			#endif	
+		#endif
         return error_TX; 
     }
     else if( frame[0]==0xFE ){
-        error_TX=txZBStatusResponse(memory);
-        free(memory);
-        memory=NULL;
+		#ifndef LAME_SOLUTION
+			error_TX=txZBStatusResponse(memory);
+				#ifdef SEND_MEMORY_LEAK_DEBUG  // ?
+					USB.print("parse4 "); USB.println(freeMemory());
+				#endif	
+			free(memory);
+			memory=NULL;
+				#ifdef SEND_MEMORY_LEAK_DEBUG  // ?
+					USB.print("parse4 behind free "); USB.println(freeMemory());
+				#endif	
+		#else
+			error_TX=txZBStatusResponse(memoryBjorn);
+		#endif
         return error_TX; 
     }
 	
@@ -5044,7 +5135,9 @@ int8_t WaspXBeeCore::parse_message(uint8_t* frame)
         interval=5;
         maxFrame=109;
     }
-	
+#ifdef SEND_MEMORY_LEAK_DEBUG  // ?
+	USB.print("parse4 "); USB.println(freeMemory());
+#endif		
     // Check if a ED is performed
     if( frame[5]==0x45 && frame[6]==0x44 && protocol==XBEE_802_15_4 ) interval=3000;
 	
@@ -5064,6 +5157,11 @@ int8_t WaspXBeeCore::parse_message(uint8_t* frame)
     // Read data from XBee meanwhile data is available
     previous2=millis();
     previous=millis();
+
+/// /////////////////////////////////////////////////////////////////////////////////////////////////
+/// FULL COPY FROM HERE ON...
+#ifndef LAME_SOLUTION
+/// /////////////////////////////////////////////////////////////////////////////////////////////////
 
     while( ((millis()-previous)<interval) && ((millis()-previous2)<intervalMAX) && i<MAX_PARSE && !frameNext )
     {	
@@ -5098,6 +5196,10 @@ int8_t WaspXBeeCore::parse_message(uint8_t* frame)
 	if( millis()-previous < 0 ) previous=millis(); //avoid millis overflow problem
         if( millis()-previous2 < 0 ) previous2=millis(); //avoid millis overflow problem
     }
+	
+#ifdef SEND_MEMORY_LEAK_DEBUG  // ?
+	USB.print("parse5 "); USB.println(freeMemory());
+#endif		
 		
     num_data=i;
     i=1;
@@ -5149,9 +5251,115 @@ int8_t WaspXBeeCore::parse_message(uint8_t* frame)
 		
     free(memory);
     memory=NULL;
-
+	
+#ifdef SEND_MEMORY_LEAK_DEBUG  // Never reached via XBeeSendMessagePrivate
+	USB.print("parse6 "); USB.println(freeMemory());
+#endif	
+	
     if(good_frame) return 0;
     else return error;
+	
+
+/// /////////////////////////////////////////////////////////////////////////////////////////////////
+/// ...FULL COPY FROM HERE ON...
+#else
+/// /////////////////////////////////////////////////////////////////////////////////////////////////
+    while( ((millis()-previous)<interval) && ((millis()-previous2)<intervalMAX) && i<MAX_PARSE && !frameNext )
+    {	
+	if( uart==UART0 )
+	{
+	   if(XBee.available())
+	   {
+		memoryBjorn[i]=XBee.read();
+		i++;
+		if(memoryBjorn[i-1]==0x7E)
+		{
+			if( (MAX_PARSE-i) < maxFrame ) frameNext=1;
+			else num_mes++;
+		}
+		previous=millis();
+	   }
+	}
+	else if( uart==UART1 )
+	{
+	   if(XBee2.available())
+	   {
+		memoryBjorn[i]=XBee2.read();	
+		i++;
+		if(memoryBjorn[i-1]==0x7E)
+		{
+			if( (MAX_PARSE-i) < maxFrame ) frameNext=1;
+			else num_mes++;
+		}
+		previous=millis();
+	   }
+	}
+	if( millis()-previous < 0 ) previous=millis(); //avoid millis overflow problem
+        if( millis()-previous2 < 0 ) previous2=millis(); //avoid millis overflow problem
+    }
+	
+#ifdef SEND_MEMORY_LEAK_DEBUG  // ?
+	USB.print("parse5 "); USB.println(freeMemory());
+#endif		
+		
+    num_data=i;
+    i=1;
+	
+	// If some corrupted frame has appeared we jump it
+    if( memoryBjorn[0]!=0x7E ) num_mes++;
+	
+	// Parse the received messages from the XBee
+    while( num_mes>0 )
+    {
+        while( memoryBjorn[i]!=0x7E && i<num_data ) i++;
+        length_mes=i-length_prev;
+		
+		// If some char has been eschaped, it must be converted before parsing it
+        for( it=0;it<length_mes;it++ )
+        {
+            if( memoryBjorn[it+length_prev]==0x7D ) num_esc++;
+        }
+        if( num_esc ) des_esc(memoryBjorn,length_mes,i-length_mes);
+		
+        switch( memoryBjorn[(i-length_mes)+3] )
+        {
+            case 0x88 :	error=atCommandResponse(memoryBjorn,frame,length_mes-num_esc+length_prev,i-length_mes);
+            error_AT=error;
+            break;
+            case 0x8A :	error=modemStatusResponse(memoryBjorn,length_mes-num_esc+length_prev,i-length_mes);
+            break;
+            case 0x80 :	error=rxData(memoryBjorn,length_mes-num_esc+length_prev,i-length_mes);
+            error_RX=error;
+            break;
+            case 0x81 :	error=rxData(memoryBjorn,length_mes-num_esc+length_prev,i-length_mes);
+            error_RX=error;
+            break;
+            case 0x90 :	error=rxData(memoryBjorn,length_mes-num_esc+length_prev,i-length_mes);
+            error_RX=error;
+            break;
+            case 0x91 :	error=rxData(memoryBjorn,length_mes-num_esc+length_prev,i-length_mes);
+            error_RX=error;
+            break;
+            default   :	break;
+        }
+		
+        num_mes--;
+        length_prev=i;
+        i++;
+        num_esc=0;
+        if(!error) good_frame++;
+    }
+		
+    //free(memory);
+    //memory=NULL;
+	
+#ifdef SEND_MEMORY_LEAK_DEBUG  // Never reached via XBeeSendMessagePrivate
+	USB.print("parse6 "); USB.println(freeMemory());
+#endif	
+	
+    if(good_frame) return 0;
+    else return error;	
+#endif	
 }
 
 

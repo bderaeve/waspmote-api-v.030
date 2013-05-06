@@ -25,12 +25,16 @@
 
 #ifdef __cplusplus
 
+
+//#define WEATHER_STATION
+
 #include "WaspXBeeZBNode.h"
 #include "CommUtils.h"
 #include "SensorUtils.h"
 #include "PAQUtils.h"
 #include "EEPROMUtils.h"
 #include "RTCUtils.h"
+#include "PowerUtils.h"
 
 
 #endif

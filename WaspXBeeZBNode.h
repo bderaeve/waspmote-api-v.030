@@ -13,6 +13,9 @@
 #ifndef WASPXBEEZBNODE_H
 #define WASPXBEEZBNODE_H
 
+
+#define xstr(s) str(s)
+#define str(s) #s
 	
 /******************************************************************************
  * Includes
@@ -25,14 +28,22 @@
  ******************************************************************************/
 //#define NODE_DEBUG
 
+#define mess "test"
+#define FreeMem "Free Memory: "
 #define NODE_DEBUG_V2
 
+
+#define SLEEP_DEBUG
+//#define DEEPSLEEP_DEBUG
 //#define HIBERNATE_DEBUG
 #define HIBERNATE_DEBUG_V2
-#define HIBERNATE_DEBUG_V3
+//#define HIBERNATE_DEBUG_V3
+#define WASPMOTE_SLEEP_MODE_DEBUG
+
+#define FINAL_DEBUG
+
 #define MATH_DEBUG
-//#define SLEEP_DEBUG
-//#define DEEPSLEEP_DEBUG
+
 //#define TEST_DIFFICULT_DEBUG
 
 //#define MATH_DEBUG_EXTENDED
@@ -41,6 +52,10 @@
 //#define POWER_SAVER_DEBUG
 
 #define ADD_NODE_REQ_DEBUG
+//#define MASK_REQ_DEBUG
+#define CH_SENS_FREQ_REQ_DEBUG
+
+
 
 //! Determines if all the different sleep times could be calculated and stored
 /*! or wether the reserved memory is too small and the next values should be 
@@ -58,7 +73,8 @@ typedef enum {HIGHPERFORMANCE, POWERSAVER}
 typedef enum {SLEEP, DEEPSLEEP, HIBERNATE, NONE}
 	SleepMode;
 
-
+typedef enum {XBEE_SLEEP_MODE, NO_XBEE_SLEEP_MODE}
+	XBeeSleepMode;
 
 /******************************************************************************
  * Class
@@ -82,8 +98,9 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		void setPhysicalSensorMaskLength();
 		//! Stores the length of the nodes active sensor mask
 		void setActiveSensorMaskLength();
-		
+		//! Reads the necessary program parameters from EEPROM after hibernate
 		void readCoreVariablesFromEEPROM();
+
 		
 	public:
 		//! class constructor
@@ -96,12 +113,12 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		
 		
 		void hibernateInterrupt();
-		
-		uint8_t testVar;
-		void testFunc();
-		
+
+		void setAlarmForRouter();
 		
 		void setGatewayMacAddress(uint8_t[8]);
+		uint8_t retryJoining();
+		//void setPanID(uint8_t[8]);
 
 /*********************************************************************************************************
  *	NODE SENSOR BOARD LAYOUT FUNCTIONALITY
@@ -114,6 +131,7 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		 */
 		uint8_t getDeviceRole();
 		
+		
 		//! It stores the device role in global 'deviceRole'
 		/*!   Assumes that the device type is correctly set via X-CTU 
 		 *		(Flash the XBee to different function set)
@@ -121,12 +139,20 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		 */
 		uint8_t setDeviceRole(DeviceRole);
  
+ 
 		//! It allows to remotely set a sensor mask to a node
 		/*! This sensor mask must correspond to the physical layout of the node and is
-		 *! not supposed to change!
+		 *  not supposed to change!
+		 *  The function will check if the received mask is valid for this type of node
+		 *  according to the settings of 'SensUtils.acceptedSensorMask' in order to avoid
+		 *  program instabilities.
+		 *  This function is invoked when an ADD_NODE_REQ command is received
 		 *  \@post: physicalSensorMaskLength will be set
+		 *  \return 2 : Function has not been executed
+		 *			1 : Parameter was an invalid sensor mask
+		 *			0 : Successfully executed
 		 */
-		void setPhysicalSensorMask(uint8_t *);
+		uint8_t setPhysicalSensorMask(uint8_t *);
 		
 		
 		//! It allows an installer to set a sensor mask of active sensors to a node via libelium-IDE
@@ -147,11 +173,16 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		uint8_t setActiveSensorMaskWithTimes(uint16_t, ...);
 		
 		
-		//! It allows to remotely set a sensor mask to a node
+		//! It allows to remotely set an active sensor mask to a node
 		/*! This sensor mask serves to indicate which installed sensors should be measured
+		 *  The function will check if the received mask is valid, comparing it to the node's
+		 *  physical sensor layout
 		 *  \@post: activeSensorMaskLength will be set
+		 *  \return 2 : Function has not been executed
+		 *			1 : Parameter was an invalid sensor mask
+		 *			0 : Successfully executed		 
 		 */
-		void setActiveSensorMask(uint8_t *);
+		uint8_t setActiveSensorMask(uint8_t *);
 			
 		uint8_t getMaskLength(uint16_t);
 		uint8_t getNrActiveSensors(uint16_t);
@@ -163,31 +194,14 @@ class WaspXBeeZBNode : public WaspXBeeZB
  *	DEEPSLEEP / HIBERNATE FUNCTIONALITY
  ********************************************************************************************************/
  
-		//! Use this function if you want to set a time2sleep OFFSET via the Waspmote-IDE
-		//! So this function ignores variable sleep times
-		/*!	\param:	SleepMode: HIBERNATE or DEEPSLEEP
-		 *  \param: time2sleep: 1 = 10 seconds
-		 */
-		void enterLowPowerMode(SleepMode, uint16_t);
-		
-		//! Node will go into HIBERNATE / (DEEP) SLEEP for the time specified. 
-		/*! Function will check if node is in defaultOperatio or not.
-		 *  \@pre: This time must have been set on beforehand!!!!
-		 *  \@post: The next time2wake will be set in this function for SLEEP or DEEPSLEEP
-		 *	\@post: The next time2wake should be set in the hibernateInterrupt()
-		 */
-		void enterLowPowerMode(SleepMode);
-		
-		//! Node will go into hibernate until the RTC alarm goes off. This alarm must have been set
-		//! on beforehand!  (normally this is done immediately after waking up in the ifHibernateInterrupt)
-		void hibernate();
-		
-		void findNextTime2Wake(SleepMode);
 
 		
 /*********************************************************************************************************
  *	VARIABLE TIMING FUNCTIONALITY
  ********************************************************************************************************/
+ 
+ 
+ 		void findNextTime2Wake(SleepMode);		
  
 		//! Set a new standard time2sleep for the node
 		/*! \@post: all sensors in the active sensor mask will be measured and send
@@ -219,6 +233,9 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		void updatePosInArray();
 
 		void testPrinting();
+		void testMemory();
+		void testMemory2();
+		void testMemory3();
 		
 		//Store a value into the EEPROM memory
 		/**
@@ -228,22 +245,62 @@ class WaspXBeeZBNode : public WaspXBeeZB
  */
 		uint8_t storeValue(int, uint8_t);
 		
-		
+		void storeProgramParametersToEEPROM();
+
 
 		
 		
-		
 		//Addressing / Setup
-		uint8_t panid[8]; 
+		
+		///  NODE SETUP - XBEE SETUP /////////////////////////////////////////////////////
+		
+		
+		//uint8_t panid[8]; 
+		
+		//!
+		/*! Contains the address of the gateway to send to
+		 */				
 		uint8_t GATEWAY_MAC[8]; 
-		uint8_t deviceRole;
+		
+		uint8_t ACCEPTED_GATEWAY_BJORN[4];
+		uint8_t ACCEPTED_GATEWAY_ROEL[4];
+		
+		
+		//!
+		/*! Contains the node's device role - not necessary equal to the one
+		 *  stored in the XBee / ZigBee profile, but for Waspmote sleep settings
+		 */		
+		DeviceRole deviceRole;
+		
+		
 		uint8_t nrOfPanics;
 		
-		//Sensor
+		
+		///  SENSORS ////////////////////////////////////////////////////////////////////
+		
+		//!
+		/*! Contains the nodes physical sensor layout
+		 */		
 		uint16_t physicalSensorMask;
+		
+		
+		//!
+		/*! Contains the length of the node's physical sensor mask
+		 */		
 		uint8_t physicalSensorMaskLength;
+		
+		
+		//!
+		/*! Contains the nodes active sensors which can be measured at different times
+		 */		
 		uint16_t activeSensorMask;
+		
+
+		//!
+		/*! Contains the length of the node's active sensor mask
+		 */		
 		uint8_t activeSensorMaskLength;
+		
 		
 		//!
 		/*! Stores how much of the nodes sensors are activated
@@ -265,12 +322,26 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		bool lastArrayContainedLCM; 
 		
 		bool resetRTC;
+	
+		//!
+		/*! Stores the Waspmote's sleep mode
+		 *  Options are: SLEEP, DEEPSLEEP, HIBERNATE, NONE
+		 */			
+		SleepMode sleepMode;
 		
 		
-		SleepMode sleepMode;	/// SLEEP / DEEPSLEEP / HIBERNATE 
-		PowerPlan powerPlan;	/// MEASURE AND SEND OR ONLY MEASURE
+		//!
+		/*! Stores the Waspmote's power plan
+		 *	Options are: 
+		 *    -> HIGHPERFORMANCE : the Waspmote wakes, measures, sends and checks for
+		 *						   commands / requests
+		 *    ->POWERSAVER : the Waspmote wakes, measures and goes back to sleep x times
+		 *		 The x+1 th time the Waspmote wakes, measures, sends the x+1 samples
+		 *		 and checks for commands / requests
+		 *		 Samples are stored in RAM or EEPROM depending on sleepmode		
+		 */
+		PowerPlan powerPlan;
 		
-
 		
 		//! Defines if the node operates in default mode (one defaultTime2Wake) or if
 		/*! individual sensors have different sleep time settings.
@@ -278,6 +349,17 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		bool defaultOperation;
 		
 		
+		//! Defines if the node has been invited to the network yet via an ADD_NODE_REQ
+		/*! As long as the node is not invited its sleeping time will be increased
+		 *  in order not to waste battery power
+		 */
+		bool inNetwork;
+		
+		
+		//! 
+		/*! Saves how long a node will sleep when it is not yet invited to the network
+		 */
+		uint8_t notInNetworkNrMinutesToSleep;
 
 
 		bool mustCalculateNextTimes;
@@ -290,8 +372,6 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		//uint16_t * time2wValuesArray;
 		//uint16_t factor;
 		uint16_t hibernateCycleNumber;
-			
-		
 };
 
 

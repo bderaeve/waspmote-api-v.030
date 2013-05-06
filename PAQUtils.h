@@ -23,13 +23,20 @@
  ******************************************************************************/
 //#define PACKET_DEBUG
 
-
+//!
+/*! Defines the packet types recognized by the Waspmote
+ */		
 typedef enum {DONT_USE, ADD_NODE_REQ, ADD_NODE_RES, MASK_REQ, MASK_RES, CH_NODE_FREQ_REQ,
 	CH_NODE_FREQ_RES, CH_SENS_FREQ_REQ, CH_SENS_FREQ_RES, IO_REQUEST, IO_DATA,
-	RECEIVE_ERROR, SEND_ERROR}
+	RECEIVE_ERROR, SEND_ERROR, CHANGE_MODE_REQ, CHANGE_MODE_RES, STARTED_RAINING}
 	ApplicationIDs;
 
+	
+//!
+/*! Contains the errors that can be notified to the gateway via an SEND_ERROR packet
+ */			
 typedef enum {	//INVALID PACKET RECEIVED
+				NOT_IN_USE,
 				NODE_RECEIVED_INVALID_PACKET_OF_TYPE_0_DONT_USE,
 				NODE_RECEIVED_INVALID_PACKET_OF_TYPE_2_ADD_NODE_RES,
 				NODE_RECEIVED_INVALID_PACKET_OF_TYPE_4_MASK_RES,
@@ -38,10 +45,17 @@ typedef enum {	//INVALID PACKET RECEIVED
 				NODE_RECEIVED_INVALID_PACKET_OF_TYPE_10_IO_DATA,
 				NODE_RECEIVED_INVALID_PACKET_OF_TYPE_12_SEND_ERROR,
 				//INVALID PACKET CONTENT RECEIVED
+				NODE_RECEIVED_AN_UNKNOWN_PACKET_TYPE,
+				NODE_RECEIVED_INVALID_MASK_IN_ADD_NODE_REQUEST,
+				MASK_RECEIVED_IN_ADD_NODE_REQUEST_WAS_REFUSED_BY_THE_PHYSICAL_MASK,
 				NODE_RECEIVED_INVALID_NEW_DEFAULT_SLEEP_TIME,
 				NODE_RECEIVED_EMPTY_SENSOR_MASK_IN_CH_SENS_FREQ_REQ,
 				NODE_HAS_NO_LONGER_ACTIVE_SENSORS,
-				NODE_HAD_AN_ERROR_IN_SET_NEW_DIFFERENT_SLEEP_TIMES
+				NODE_HAD_AN_ERROR_IN_SET_NEW_DIFFERENT_SLEEP_TIMES,
+				//PROGRAM ERRORS
+				NODE_HAD_AN_ERROR_IN_XBEEZB_CHANGE_SENSOR_FREQUENCIES,
+				//UNAUTHORIZED REQUESTS
+				NODE_RECEIVED_AN_UNAUTHORIZED_REQUEST_OF_ADD_NODE_REQUEST
 			}
 	Errors;
 
@@ -191,17 +205,30 @@ class PAQUtils
 		  \return void
 		*/
 		PAQUtils(){};
+
 		
-		void testPrinting();
-		
-		//! Type of the data which is sent
+		//! 
+		/*! Retreive the type of the received packet, it stores in global 'applicationID'
+		 */
 		void getPacketApplicationID(packetXBee *);
 		
-		//! 16-bit mask identifying which information (sensors) is sent
+		
+		//!
+		/*! 16-bit mask identifying which information (sensors) is sent in the packet
+		 */
 		void setPacketMask(uint16_t);
+		
+		
+		//!
+		/*! Retrieves the mask from a received packet, storing in global 'mask'
+		 */
 		void getPacketMask(packetXBee *);
 		
 		
+		//!
+		/*! Returns if the received mask is feasable according to this node's
+		 *  physical sensor layout set via the ADD_NODE_REQ command
+		 */
 		bool maskMatchesNodesPhysicalSensorMask(uint16_t);
 		
 		
@@ -214,25 +241,57 @@ class PAQUtils
 		uint8_t sendMask(uint8_t *, uint8_t, uint16_t);
 		uint8_t sendMeasuredSensors(uint8_t *, uint16_t);
 		
+		
+		//!
+		/*! It returns if the sender of a packet is an authorized sender
+		 *  This means it is the gateway or one of the test XBees used,
+		 *  stored in the constructor of 'WaspXBeeZBNode'
+		 */
+		bool authorizeSender(packetXBee *);
+		
+		
+		//!
+		/*! It removes the zeros from data to be sent
+		 *  @pre: the data to send must be present in global 'packetData[MAX_DATA]'
+		 *  @pre: the content param must be allocated
+		 *  @param : the char *  to send, where the escaped data must be put in 
+		 */
 		void escapeZerosInPacketData(char *);
 		
+		
+		//!
+		/*! Returns if two MAC addresses are the same
+		 */
 		bool areSameMACAddresses(uint8_t *, uint8_t *);
+	
 		
-		void testComm(uint8_t * , uint8_t, char *);
-		/*
-		void testComm2(uint8_t *, uint8_t);
-		void testComm3(uint8_t * , uint8_t, const char *);
-		void testComm4(const char *, const char *);
-		void testComm5(const char *, uint8_t, const char *);
-		void testComm6();
-		void testComm7();
-		*/
-		
-		
+		//!
+		/*! Stores the packet type of a received packet / packet to be sent
+		 */		
 		uint8_t applicationID;
+		
+
+		//!
+		/*! Stores the mask of a received packet / packet to be sent
+		 */		
 		uint16_t mask;
+		
+		
+		//!
+		/*! Stores the origin address of a received packet
+		 */				
 		uint8_t originAddress[8];
+		
+		
+		//!
+		/*! Stores the packet size of a received packet / packet to be sent
+		 */				
 		uint8_t packetSize;
+		
+		
+		//!
+		/*! Contains the packet data
+		 */				
 		char packetData[MAX_DATA];
  };
  

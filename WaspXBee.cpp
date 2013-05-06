@@ -89,7 +89,9 @@ void WaspXBee::setMode(uint8_t mode)
 			digitalWrite(GPRS_PW,LOW); 
 		}
 		break;
-	
+	case XBEE_HIBERNATE:
+	    //XBee.setSleepMode(1);
+		break;
 	default:
 		break;
   }

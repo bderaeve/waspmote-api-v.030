@@ -10,13 +10,15 @@
  * Definitions & Declarations
  ******************************************************************************/
 //#define SENS_DEBUG
+#define SENS_DEBUG_V2
 
 typedef enum {TEMPERATURE = 0x0001, HUMIDITY = 0x0002, PRESSURE = 0x0004, 
-	BATTERY = 0x0008, CO2 = 0x0010, ANEMO = 0x0020, VANE = 0x040, PLUVIO = 0x080} 
+	BATTERY = 0x0008, CO2 = 0x0010, ANEMO = 0x0020, VANE = 0x0040, PLUVIO = 0x0080,
+	LUMINOSITY = 0x0100, SOLAR_RADIATION = 0x0200} 
 	SensorType;
 	
-#define NUM_MEASUREMENTS 3
-#define NUM_SENSORS 8  //MUST BE <=16 FOR EEPROM CONFIGURATION
+#define NUM_MEASUREMENTS 10
+#define NUM_SENSORS 10  //MUST BE <=16 FOR CURRENT EEPROM CONFIGURATION
 
 
 //! Function pointers to save sensor data
@@ -99,10 +101,37 @@ class SensorUtils
 		*/		  
 		void measureCO2();  
 		
-		
-		void measureAnemo();
-		void measureVane();
-		void measurePluvio();
+		/// #ifdef WEATHER_STATION //////////////////////////////////////////////////
+			void measureAnemo();
+			void measureVane();
+			
+			
+			//! It gets the current SENS_AGR_PLUVIOMETER value
+			/*!
+			It stores in global variable 'current_rainfall' the currently measured 
+			rainfall in mm/min.  (not very accurate)
+			*/				
+			void measureCurrentRainfall();
+			
+			
+			//! Interrupt Service Routine called when a PluvioInt has been generated
+			/*!
+			It stores the summative rainfall since the previous resetPluviometer(),
+			not yet in mm. Use getSummativeRainfall() to get the value in mm.
+			*/
+			void rainfall_ISR();
+			
+			
+			//! It stores the summative rainfall in mm since the previous resetPluviometer()
+			//! in global 'summativeRainfallInMM'
+			void getSummativeRainfall();
+			
+			
+			void resetPluviometer();
+			
+			void measureLuminosity();
+			void measureSolarRadiation();
+		/// #endif /*WEATHER_STATION*/ //////////////////////////////////////////////	
 		
 		  
 		//! Measures all sensors found as arguments
@@ -143,7 +172,7 @@ class SensorUtils
 					error=0 --> The command has been executed with no errors
 		*/		
 		uint8_t measureAndstoreSensorValues(uint16_t);
-		
+		void storeMeasuredSensorValues(uint16_t);
 		
 		
 		//! It enters the sensor's measuring interval time to the correct position in 
@@ -217,7 +246,27 @@ class SensorUtils
 		 */
 		unsigned char co_2[2];		
 		
+		//! Variable : the anemo value
+		/*! RANGE: 0 - 240 km/h
+		 */			
+		float anemo;
+		
+		
+		//! Variable : the anemo value
+		/*!
+		 */			
+		float vane;
+		
+		
+		float pluvio;
+		float summativeRainfallInMM;
+		long pluviometerCounter;
+		bool startedRaining;
+		uint16_t startedRainingTime;
+		
+		float luminosity;
 	
+		float solar_radiation;
 
 		//!
 		/*! Stores the individual measuring interval times of the sensors
@@ -234,6 +283,7 @@ class SensorUtils
 		 */
 		uint16_t minTime;
 		
+		uint16_t acceptedSensorMask;
 		
 		long previous;
 	

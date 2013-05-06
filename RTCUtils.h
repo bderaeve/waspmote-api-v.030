@@ -36,15 +36,7 @@
  ******************************************************************************/
 //#define RTC_UTILS_DEBUG_V2
 
-
 #define ONE_DAY 8640
-
-
-//extern TreatData * myTreatPacket[];  //Declared in 'PacketUtils.h'
-
-//typedef enum {SETUP, LOOP} 
-//	AssociationMode;
-
 
 /******************************************************************************
  * Class
@@ -62,15 +54,25 @@ class RTCUtils
 		  \param void
 		  \return void
 		 */
-		RTCUtils(){};
+		RTCUtils();
+		
 		
 		void reinitialize();
 		
+		//! It sets the time received in parameter and updates the RTCUtils time variables
+		/*! \param: the time to set: "13:04:04:05:00:00:00"  (see 'RTC.h')
+		 */
+		void setTime(const char *);
 		
 		//! It gets from the RTC the date and time, storing them in the corresponding variables
 		//! in WaspRTC:RTC and stores the converted value in this object in 'RTCInt'
 		char * getTime();
 		
+		//! It sets the time when the Waspmote woke up
+		/*!
+		 *	\pre: RTCUt.getTime()
+		 */
+		void setAwakeAtTime();
 		
 		//! converts an integer time2wait to a WaspRTC compactibel char *
 		/*!
@@ -93,6 +95,7 @@ class RTCUtils
 		 */		
 		uint8_t setNextTimeWhenToWakeUpViaOffset(uint16_t);
 		
+		uint8_t setNextTimeWhenToMeasureInAlarm1(uint16_t);
 		
 		//! converts the value returned from WaspRTC:RTC to an int value compactible
 		//! with our timing system
@@ -112,26 +115,34 @@ class RTCUtils
 		
 		
 		//!
+		/*! Stores the time when the Waspmote woke up
+		 */
+		uint16_t RTCAwakeAtSeconds;
+		
+		
+		//!
 		/*! Stores the Alarm1 value as uint16_t as long as its < 65536
 		 */			
 		uint16_t Alarm1int;
+		
 		
 		//!
 		/*! Stores the next time to wake up(hours, mins and seconds) absolute time as int
 		 */
 		uint16_t nextTime2WakeUpHoursMinsSecsInt;
 		
+		
 		//!
 		/*! Stores the next time to wake up(day) absolute time as int
 		 */
 		uint8_t nextDay2WakeUpInt;
+		
 		
 		//!
 		/*! Stores the next time to wake up offset as WaspRTC:hibernate compactible
 		 *! char *
 		 */		
 		char nextTime2WakeUpChar[12];	
-	
 };
  
 extern RTCUtils RTCUt;

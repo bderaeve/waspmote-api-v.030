@@ -120,9 +120,9 @@
 		#include "WaspSensorAgr.h"
 	#endif
 	
-	#ifdef USE_WASP_SENSOR_GAS	
+	//#ifdef USE_WASP_SENSOR_GAS	
 		#include "WaspSensorGas.h"
-	#endif
+	//#endif
 	
 	#ifdef USE_WASP_SENSOR_EVENT
 		#include "WaspSensorEvent.h"

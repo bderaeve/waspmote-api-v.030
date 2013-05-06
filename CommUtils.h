@@ -30,15 +30,16 @@
  ******************************************************************************/
 //#define COMM_DEBUG
 #define RECEIVE_DEBUG
+#define SEND_DEBUG
 //#define ASSOCIATION_DEBUG
 //#define TIME_DEBUG
+#define SEND_MEMORY_LEAK_DEBUG
 
 extern TreatData * myTreatPacket[];  //Declared in 'PacketUtils.h'
 
 typedef enum {SETUP, LOOP} 
 	AssociationMode;
-
-
+	
 /******************************************************************************
  * Class
  ******************************************************************************/
@@ -54,7 +55,7 @@ class CommUtils
 		  \param void
 		  \return void
 		 */
-		CommUtils(){};
+		CommUtils();
 		
 		#ifdef COMM_DEBUG
 			void testPrinting();
@@ -107,6 +108,14 @@ class CommUtils
 		void printCurrentNetworkParams();
 		
 		
+		//! It discovers and reports all the modules found in its current operating PAN ID and CHANNEL
+		/*! The results are printed via USB and stored in different fields in 'WaspXBeeCore.h'
+		 *	@see: Waspmote ZigBee Networking Guide section 8.5
+		 */
+		void discoverNodes();		
+		void printScannedNodesInformation();
+		
+		
 		//! It checks for any received messages 
 		/*! In debug mode it also stores possible messages in 'receivedData[MAX_DATA]' and prints the content
 		/*! If necessary the function will wait for 20 sec until the XBee module has received
@@ -117,16 +126,27 @@ class CommUtils
 					error=1 --> No data received
 					error=0 --> Message received successfully
 		*/ 		
-		uint8_t receiveMessages();
+		uint8_t receiveMessages(DeviceRole);
 		
+		
+		// error = 2: nothing received
+		// error = 3: read error
 		uint8_t receiveTest();
+		
+		
+		//! It returns if the received data is a valid packet for the program to process
+		//! Accepted types are stored in the ApplicationIDs enum in 'PAQUtils.h'
+		bool isValidPacket(uint8_t *);
+		
 		
 		//! It sends a packet of type (applicationID) 0: 'ERRORMESSAGE' to destination
 		/*!
 		  \param destination: the destination MAC address
 		  \param message: the message to be sent
-		  \return   error=2 --> The command has not been executed
-					error=1 --> The message could not be sent
+		  \return   error=2 --> The command has not been executed / The message could not be sent or is lost
+					error=1 --> *Without XBee Sleep: The message could not be sent
+								*With XBee Sleep: The message hangs in parent buffer and will be 
+								 delivered when the end device wakes up
 					error=0 --> The command has been executed with no errors
 		*/
 		uint8_t sendMessage(uint8_t * destination, const char * message);
@@ -137,13 +157,26 @@ class CommUtils
 		  \param destination: the destination MAC address
 		  \param applicationID: the type of the packet to send
 		  \param message: the message to be sent
-		  \return   error=2 --> The command has not been executed
-					error=1 --> The message could not be sent
+		  \return   error=2 --> The command has not been executed / The message could not be sent or is lost
+					error=1 --> *Without XBee Sleep: The message could not be sent
+								*With XBee Sleep: The message hangs in parent buffer and will be 
+								 delivered when the end device wakes up
 					error=0 --> The command has been executed with no errors
 		*/
-		uint8_t sendMessage(uint8_t * destination, uint8_t, /*const*/ char * message);		
+		uint8_t sendMessage(uint8_t * destination, uint8_t, const char * message);		
 		
-		char * escapeZeros(char *, uint8_t);
+		
+		uint8_t sendError(Errors);
+		
+		//! It replaces the zeros in data by 0xFFFE so it can be sent correctly
+		/*! 
+		  \param data    : the data where zeros must be replaced
+		  \param length  : the length of the original data stream
+		  \return char * : the new data with escaped zeros
+		 */
+		char * escapeZeros(char * data , uint8_t length);
+		
+		bool retryJoining;
 		
 		#ifdef RECEIVE_DEBUG
 			//! It stores the received data for debugging reasons.
