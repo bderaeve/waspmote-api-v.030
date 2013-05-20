@@ -54,7 +54,7 @@ WaspXBeeZBNode::WaspXBeeZBNode()
 		defaultTime2WakeInt = 6;   //"00:00:00:10"
 		//defaultTime2WakeInt = 6;   //"00:00:01:00"
 	#else
-		defaultTime2WakeInt = 4;	//"00:00:15:00";
+		defaultTime2WakeInt = 6;	//"00:00:15:00";
 	#endif
 	/// The timeToWakeUp is set in COMM.setupXBee()
 }
@@ -379,7 +379,8 @@ uint8_t WaspXBeeZBNode::setActiveSensorMask(uint8_t * mask)
 	if(tempMask &= ~physicalSensorMask)
 		return error = 1;
 	
-	activeSensorMask = tempMask;
+	//activeSensorMask = tempMask;   /// THIS DOESN'T WORK FOR SOME REASON
+	activeSensorMask = (unsigned int) (mask[0]*256 + mask[1]);
 	
 	mask[0] == Utils.readEEPROM(ACT_MASK_H) ? : storeValue(ACT_MASK_H, mask[0]);	
 	mask[1] == Utils.readEEPROM(ACT_MASK_L) ? : storeValue(ACT_MASK_L, mask[1]);
@@ -400,8 +401,9 @@ uint8_t WaspXBeeZBNode::setPhysicalSensorMask(uint8_t * mask)
 	if(tempMask &= ~SensUtils.acceptedSensorMask)
 		return error = 1;	
 	
-	physicalSensorMask =  tempMask;
-		
+	//physicalSensorMask =  tempMask;  /// THIS DOESN'T WORK FOR SOME REASON
+	physicalSensorMask = (unsigned int) (mask[0]*256 + mask[1]);
+	
 	mask[0] == Utils.readEEPROM(PHY_MASK_H) ? : storeValue(PHY_MASK_H, mask[0]);	
 	mask[0] == Utils.readEEPROM(PHY_MASK_L) ? : storeValue(PHY_MASK_L, mask[1]);
 	
@@ -1189,6 +1191,7 @@ void WaspXBeeZBNode::testMemory()
 	str[4] = 'e';
 	str[5] = '\0';
 	
+	/*
 	USB.println("start");
 	USB.println(str);
 	USB.println(mess);
@@ -1207,14 +1210,17 @@ void WaspXBeeZBNode::testMemory()
 	USB.println("kdfjmqioimeqfjqkfjekjfejfkedfjkfg");
 	USB.println("end");
 	USB.println(freeMemory());
+	*/
 }
 
 
 void WaspXBeeZBNode::testMemory2()
 {
-	char str[5] = {'t','e','s','t', '\0'};
-	char st[5] = "test";
-	USB.println(str);
+	//char str[5] = {'t','e','s','t', '\0'};
+	//char str[] = "test";
+	USB.println("kkkk");
+	//USB.println(str);
+	USB.print("in: ");  USB.println(freeMemory());
 	USB.println("boe");
 	USB.println("bla");
 	USB.println("blo");

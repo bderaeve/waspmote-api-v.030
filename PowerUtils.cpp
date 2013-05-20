@@ -92,7 +92,7 @@ void PowerUtils::enterLowPowerMode(SleepMode sm, XBeeSleepMode xbs) ///AT END OF
 				USB.print( RTCUt.nextTime2WakeUpChar );
 			#endif
 			
-		if(xbs == NO_XBEE_SLEEP_MODE)
+		if(xbs == XBEE_SLEEP_DISABLED)
 		{
 			PWR.deepSleep(RTCUt.nextTime2WakeUpChar, RTC_ABSOLUTE, RTC_ALM1_MODE3, ALL_OFF);	
 			xbeeZB.ON();
@@ -168,16 +168,16 @@ void PowerUtils::enterLowPowerMode(SleepMode sm, XBeeSleepMode xbs) ///AT END OF
 
 void PowerUtils::enterLowPowerMode(SleepMode sm)
 {
-	enterLowPowerMode(sm, NO_XBEE_SLEEP_MODE);
+	enterLowPowerMode(sm, XBEE_SLEEP_DISABLED);
 }
 
 
 void PowerUtils::enterLowPowerMode() ///AT END OF LOOP()   AUTO SELECTION SLEEP MODE 
 {
 	if(RTCUt.nextTime2WakeUpHoursMinsSecsInt <= 2)
-		enterLowPowerMode(SLEEP, XBEE_SLEEP_MODE);
+		enterLowPowerMode(SLEEP, XBEE_SLEEP_ENABLED);
 	else
-		enterLowPowerMode(HIBERNATE, NO_XBEE_SLEEP_MODE);
+		enterLowPowerMode(HIBERNATE, XBEE_SLEEP_DISABLED);
 } 
 
 
@@ -235,7 +235,7 @@ void PowerUtils::sleepTillNextTime2Wake(XBeeSleepMode xbs)
 			#ifdef SLEEP_DEBUG
 				USB.print("time2sleep: "); USB.println( (int) time2sleep );
 			#endif
-	if(xbs == NO_XBEE_SLEEP_MODE)
+	if(xbs == XBEE_SLEEP_DISABLED)
 	{
 		while(time2sleep > 10)
 		{
@@ -306,17 +306,17 @@ void PowerUtils::enterLowPowerModeWeatherStation(XBeeSleepMode xbs) ///AT END OF
 {
 	/// SleepMode = DEEPSLEEP (from the moment we implement hibernate we can no longer re-enable pluviometer interrupts
 	
-			#ifdef WASPMOTE_SLEEP_MODE_DEBUG
-				USB.print("\nDEEPSLEEP\n");
+			#ifdef WASPMOTE_WEATHER_SLEEP_DEBUG
+				//USB.print("\nDEEPSLEEP\n");
 			#endif	
-			#ifdef DEEPSLEEP_DEBUG
+			#ifdef WASPMOTE_WEATHER_SLEEP_DEBUG
 				USB.print("\nentering deepsleep at "); 
 				USB.print(RTC.getTime());
 				USB.print("till "); 
 				USB.print( RTCUt.nextTime2WakeUpChar );
 			#endif
 		
-	if(xbs == NO_XBEE_SLEEP_MODE)
+	if(xbs == XBEE_SLEEP_DISABLED)
 	{
 		//Put the mote to sleep with pluviometer interruptions enabled
 		//PWR.deepSleep(RTCUt.nextTime2WakeUpChar, RTC_ABSOLUTE, RTC_ALM1_MODE3, ALL_OFF);
@@ -343,7 +343,10 @@ void PowerUtils::enterLowPowerModeWeatherStation(XBeeSleepMode xbs) ///AT END OF
 
 	//In case a pluviometer interruption arrived
 	if(intFlag & PLV_INT)
-	{
+	{			
+			#ifdef WASPMOTE_WEATHER_SLEEP_DEBUG
+				USB.print("\nRain INTERRUPT received at "); USB.println(RTC.getTime());
+			#endif
 		SensUtils.rainfall_ISR();
 		
 		if(SensUtils.startedRaining)
@@ -360,8 +363,8 @@ void PowerUtils::enterLowPowerModeWeatherStation(XBeeSleepMode xbs) ///AT END OF
 	else if(intFlag & RTC_INT)
 	{
 		USB.begin();
-			#ifdef DEEPSLEEP_DEBUG
-				USB.print("awake at "); USB.println(RTC.getTime());
+			#ifdef WASPMOTE_WEATHER_SLEEP_DEBUG
+				USB.print("\nawake at "); USB.println(RTC.getTime());
 			#endif			
 			
 		if(xbeeZB.defaultOperation)
@@ -384,12 +387,10 @@ void PowerUtils::enterLowPowerModeWeatherStation(XBeeSleepMode xbs) ///AT END OF
 		
 		// Clearing the interruption flag before coming back to sleep
 		clearIntFlag();
-	/// GOTO "device enters loop"
+		/// GOTO "device enters loop"
 	}
 }
 #endif
-
-
 
 
 PowerUtils PWRUt = PowerUtils();

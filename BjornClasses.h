@@ -26,7 +26,7 @@
 #ifdef __cplusplus
 
 
-//#define WEATHER_STATION
+#define WEATHER_STATION
 
 #include "WaspXBeeZBNode.h"
 #include "CommUtils.h"

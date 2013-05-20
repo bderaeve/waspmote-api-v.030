@@ -73,7 +73,7 @@ typedef enum {HIGHPERFORMANCE, POWERSAVER}
 typedef enum {SLEEP, DEEPSLEEP, HIBERNATE, NONE}
 	SleepMode;
 
-typedef enum {XBEE_SLEEP_MODE, NO_XBEE_SLEEP_MODE}
+typedef enum {XBEE_SLEEP_ENABLED, XBEE_SLEEP_DISABLED}
 	XBeeSleepMode;
 
 /******************************************************************************

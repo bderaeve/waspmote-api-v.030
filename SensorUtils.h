@@ -17,6 +17,31 @@ typedef enum {TEMPERATURE = 0x0001, HUMIDITY = 0x0002, PRESSURE = 0x0004,
 	LUMINOSITY = 0x0100, SOLAR_RADIATION = 0x0200} 
 	SensorType;
 	
+typedef enum {VANE_N, VANE_NNE, VANE_NE, VANE_ENE, 
+			  VANE_E, VANE_ESE, VANE_SE, VANE_SSE, 
+			  VANE_S, VANE_SSW, VANE_SW, VANE_WSW, 
+			  VANE_W, VANE_WNW, VANE_NW, VANE_NNW} 
+	VaneDirection;
+
+/*
+#define SENS_AGR_VANE_N		0
+#define SENS_AGR_VANE_NNE	1
+#define SENS_AGR_VANE_NE	2
+#define SENS_AGR_VANE_ENE	4
+#define SENS_AGR_VANE_E		8
+#define SENS_AGR_VANE_ESE	16
+#define SENS_AGR_VANE_SE	32
+#define SENS_AGR_VANE_SSE	64
+#define SENS_AGR_VANE_S		128
+#define SENS_AGR_VANE_SSW	256
+#define SENS_AGR_VANE_SW	512
+#define SENS_AGR_VANE_WSW	1024
+#define SENS_AGR_VANE_W		2048
+#define SENS_AGR_VANE_WNW	4096
+#define SENS_AGR_VANE_NW	8192
+#define SENS_AGR_VANE_NNW	16384
+*/	
+	
 #define NUM_MEASUREMENTS 10
 #define NUM_SENSORS 10  //MUST BE <=16 FOR CURRENT EEPROM CONFIGURATION
 
@@ -101,7 +126,8 @@ class SensorUtils
 		*/		  
 		void measureCO2();  
 		
-		/// #ifdef WEATHER_STATION //////////////////////////////////////////////////
+		/// WEATHER_STATION //////////////////////////////////////////////////
+		#ifdef WEATHER_STATION
 			void measureAnemo();
 			void measureVane();
 			
@@ -131,6 +157,9 @@ class SensorUtils
 			
 			void measureLuminosity();
 			void measureSolarRadiation();
+			
+			void convertVaneDirection();
+		#endif /*WEATHER_STATION*/ 
 		/// #endif /*WEATHER_STATION*/ //////////////////////////////////////////////	
 		
 		  
@@ -251,16 +280,21 @@ class SensorUtils
 		 */			
 		float anemo;
 		
+		unsigned char an;
+		
 		
 		//! Variable : the anemo value
 		/*!
 		 */			
 		float vane;
 		
+		VaneDirection vaneDirection;
+		
 		
 		float pluvio;
 		float summativeRainfallInMM;
-		long pluviometerCounter;
+		unsigned char sum_rain[2];
+		uint16_t pluviometerCounter;
 		bool startedRaining;
 		uint16_t startedRainingTime;
 		

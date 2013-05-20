@@ -610,6 +610,7 @@ uint8_t CommUtils::receiveMessages(DeviceRole role)
 							error = (*myTreatPacket[xbeeZB.packet_finished[xbeeZB.pos-1]->packetID])
 								(xbeeZB.packet_finished[xbeeZB.pos-1]);
 							stop = true;
+							USB.print("\nPACKET TREATED\n");
 						}
 						else
 						{
@@ -928,6 +929,7 @@ uint8_t CommUtils::sendMessage(uint8_t * destination, uint8_t type, const char *
 uint8_t CommUtils::sendError(Errors e)
 {
 	uint8_t error = 2;
+	USB.print("\nSENDING ERROR MESSAGE: "); USB.print( (int) e); USB.print(" TO GATEWAY\n");
 	packetXBee * paq_sent;
 	paq_sent = (packetXBee*) calloc(1,sizeof(packetXBee)); 
 	
@@ -938,7 +940,7 @@ uint8_t CommUtils::sendError(Errors e)
 	xbeeZB.hops=0;
 
 	xbeeZB.setOriginParams(paq_sent, MY_TYPE);
-	xbeeZB.setDestinationParams(paq_sent, xbeeZB.GATEWAY_MAC, (int) e, MAC_TYPE, DATA_ABSOLUTE);
+	xbeeZB.setDestinationParams(paq_sent, xbeeZB.GATEWAY_MAC, (unsigned char) e, MAC_TYPE, DATA_ABSOLUTE);
 
 	error = xbeeZB.sendXBee(paq_sent);
 

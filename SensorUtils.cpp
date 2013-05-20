@@ -17,6 +17,7 @@ StoreSensorData * Saver[5] = { &saveTemperature, &saveHumidity, &savePressure,
 			
 SensorUtils::SensorUtils()
 {
+	
 	reader[0] = &SensorUtils::measureTemperature;
 	reader[1] = &SensorUtils::measureHumidity;
 	reader[2] = &SensorUtils::measurePressure;
@@ -25,7 +26,7 @@ SensorUtils::SensorUtils()
 	#ifdef WEATHER_STATION
 		reader[5] = &SensorUtils::measureAnemo;
 		reader[6] = &SensorUtils::measureVane;
-		reader[7] = &SensorUtils::measureCurrentRainfall;
+		reader[7] = &SensorUtils::getSummativeRainfall;
 		reader[8] = &SensorUtils::measureLuminosity;
 		reader[9] = &SensorUtils::measureSolarRadiation;
 	#endif
@@ -63,7 +64,7 @@ SensorUtils::SensorUtils()
   *******************************************************************************************************/
 void SensorUtils::measureTemperature()
 {
-/*
+
 		#ifdef SENS_DEBUG_V2
 			USB.println("measureTemperature");
 		#endif
@@ -74,7 +75,6 @@ void SensorUtils::measureTemperature()
 		SensorGasv20.setSensorMode(SENS_ON, SENS_TEMPERATURE);
 		delay(100);
 		
-		#ifndef SENS_DEBUG
 		for (int i=0;i<NUM_MEASUREMENTS;i++)
 		{
 			// TEMPERATURE SENSOR:   RANGE: -40° -> +125° 
@@ -83,8 +83,7 @@ void SensorUtils::measureTemperature()
 		}
 		temperature /= NUM_MEASUREMENTS;
 		USB.println(temperature);
-		#endif
-		
+
 			#ifdef SENS_DEBUG
 				previous = millis();
 				for (int i=0;i<NUM_MEASUREMENTS;i++)
@@ -125,16 +124,14 @@ void SensorUtils::measureTemperature()
 		
 		for (int i=0;i<NUM_MEASUREMENTS;i++)
 		{
-			// TEMPERATURE SENSOR:   RANGE: -40° -> +125°
+			/// TEMPERATURE SENSOR:   RANGE: -40° -> +125°
 			temperature += SensorAgrV20.readValue(SENS_AGR_TEMPERATURE);
-			USB.println(temperature);
-			//delay(100);
+			delay(10);
 		}
 		SensorAgrV20.setSensorMode(SENS_OFF, SENS_AGR_TEMPERATURE);
 		temperature /= NUM_MEASUREMENTS;	
 	
 	#endif
-*/
 }
 
 
@@ -151,14 +148,12 @@ void SensorUtils::measureHumidity()
 		SensorGasv20.setSensorMode(SENS_ON, SENS_HUMIDITY);
 		delay(100);
 		
-		#ifndef SENS_DEBUG
 		for (int i=0;i<NUM_MEASUREMENTS;i++)
 		{
 			/* HUMIDITY SENSOR:   RANGE: 0 -> 100% */
 			humidity += SensorGasv20.readValue(SENS_HUMIDITY);
 		}
 		humidity /= NUM_MEASUREMENTS;
-		#endif
 		
 			#ifdef SENS_DEBUG
 				previous = millis();
@@ -218,14 +213,12 @@ void SensorUtils::measurePressure()
 		SensorGasv20.setSensorMode(SENS_ON, SENS_PRESSURE);
 		delay(100);
 		
-		#ifndef SENS_DEBUG
 		for (int i=0;i<NUM_MEASUREMENTS;i++)
 		{
 			/* ATMOSPHERIC PRESSURE SENSOR:   RANGE: 15 -> 115 kPa */
 			pressure += SensorGasv20.readValue(SENS_PRESSURE);
 		}
 		pressure /= NUM_MEASUREMENTS;
-		#endif
 		
 			#ifdef SENS_DEBUG
 				previous = millis();
@@ -281,14 +274,12 @@ void SensorUtils::measureBattery()
 	
 	battery = 0;
 	
-	#ifndef SENS_DEBUG
 	for (int i=0;i<NUM_MEASUREMENTS;i++)
 	{
 		battery += PWR.getBatteryLevel();
 	}
 	
 	battery /= NUM_MEASUREMENTS;
-	#endif
 	
 		#ifdef SENS_DEBUG
 			previous = millis();
@@ -312,16 +303,17 @@ void SensorUtils::measureBattery()
 			USB.print("timeNoDelay "); USB.println(previous);				
 		#endif		
 		
-	#ifdef SENS_DEBUG
-		previous = millis() - previous;
-		USB.print("SensorUtils::measureBattery() took  ms"); USB.println(previous);
-	#endif
+		#ifdef SENS_DEBUG
+			previous = millis() - previous;
+			USB.print("SensorUtils::measureBattery() took  ms"); USB.println(previous);
+		#endif
 }
 
-#ifndef WEATHER_STATION
+
 void SensorUtils::measureCO2()
 {
 	/// Cannot be measured on Agriculture board
+	#ifndef WEATHER_STATION
 	uint16_t time = 0;
 		#ifdef SENS_DEBUG_V2
 			USB.println("measureCO2");
@@ -371,8 +363,10 @@ void SensorUtils::measureCO2()
 	SensorGasv20.setSensorMode(SENS_OFF, SENS_CO2);
 	co2 /= NUM_MEASUREMENTS;
 	co2 *= 1000;
+
+	#endif
 }
-#endif
+
 
 #ifdef WEATHER_STATION
 	void SensorUtils::measureAnemo()
@@ -387,14 +381,18 @@ void SensorUtils::measureCO2()
 		SensorAgrV20.setSensorMode(SENS_ON, SENS_AGR_ANEMOMETER);
 		delay(100);
 		
-		for (int i=0;i<NUM_MEASUREMENTS;i++)
-		{
+		//for (int i=0;i<NUM_MEASUREMENTS;i++)
+		//{
 			/* ANEMOMETER   RANGE: 0 -> 240 km/h */
-			anemo += SensorAgrV20.readValue(SENS_AGR_ANEMOMETER);
-		}
+			anemo = SensorAgrV20.readValue(SENS_AGR_ANEMOMETER);
+		//}
 		
 		SensorAgrV20.setSensorMode(SENS_OFF, SENS_AGR_ANEMOMETER);
-		anemo /= NUM_MEASUREMENTS;
+		//anemo /= NUM_MEASUREMENTS;
+		
+			#ifdef SENS_DEBUG_V2
+				USB.println("  measureAnemoFinished");
+			#endif		
 	}
 
 
@@ -418,13 +416,15 @@ void SensorUtils::measureCO2()
 		
 		SensorAgrV20.setSensorMode(SENS_OFF, SENS_AGR_VANE);
 		vane /= NUM_MEASUREMENTS;	
+		
+		convertVaneDirection();
 	}
 
 
 	void SensorUtils::measureCurrentRainfall()
 	{
 			#ifdef SENS_DEBUG_V2
-				USB.println("measurePluvio");
+				USB.println("measureCurrentPluvio");
 			#endif
 		
 		for (int i=0;i<NUM_MEASUREMENTS;i++)
@@ -439,7 +439,7 @@ void SensorUtils::measureCO2()
 	
 	void SensorUtils::rainfall_ISR()
 	{
-		pluviometerCounter++;
+		pluviometerCounter == 65535 ? pluviometerCounter == 65535 : pluviometerCounter++;
 		RTCUt.getTime();
 		
 		if(startedRaining)
@@ -457,7 +457,13 @@ void SensorUtils::measureCO2()
 	
 	void SensorUtils::getSummativeRainfall()
 	{
+			#ifdef SENS_DEBUG_V2
+				USB.println("measurePluvio (summative)");
+			#endif	
 		summativeRainfallInMM = float (pluviometerCounter) * 0.2794;  
+			#ifdef SENS_DEBUG_V2
+				USB.println("measurePluvio (summative) finished");
+			#endif			
 	}
 	
 	
@@ -508,6 +514,61 @@ void SensorUtils::measureCO2()
         solar_radiation /= 0.00015;		
 	}
 	
+	
+	void SensorUtils::convertVaneDirection()
+	{
+		  switch(SensorAgrV20.vane_direction)
+		  {
+			case  SENS_AGR_VANE_N   :  USB.println("N");
+									   vaneDirection = VANE_N;
+									   break;
+			case  SENS_AGR_VANE_NNE :  USB.println("NNE");
+									   vaneDirection = VANE_NNE;
+									   break;
+			case  SENS_AGR_VANE_NE  :  USB.println("NE");
+									   vaneDirection = VANE_NE;			
+									   break;
+			case  SENS_AGR_VANE_ENE :  USB.println("ENE");
+									   vaneDirection = VANE_ENE;
+									   break;
+			case  SENS_AGR_VANE_E   :  USB.println("E");
+									   vaneDirection = VANE_E;
+									   break;
+			case  SENS_AGR_VANE_ESE :  USB.println("ESE");
+									   vaneDirection = VANE_ESE;
+									   break;
+			case  SENS_AGR_VANE_SE  :  USB.println("SE");
+									   vaneDirection = VANE_SE;
+									   break;
+			case  SENS_AGR_VANE_SSE :  USB.println("SSE");
+									   vaneDirection = VANE_SSE;
+									   break;
+			case  SENS_AGR_VANE_S   :  USB.println("S");
+									   vaneDirection = VANE_S;
+									   break;
+			case  SENS_AGR_VANE_SSW :  USB.println("SSW");
+									   vaneDirection = VANE_SSW;
+									   break;
+			case  SENS_AGR_VANE_SW  :  USB.println("SW");
+									   vaneDirection = VANE_SW;
+									   break;
+			case  SENS_AGR_VANE_WSW :  USB.println("WSW");
+									   vaneDirection = VANE_WSW;
+									   break;
+			case  SENS_AGR_VANE_W   :  USB.println("W");
+									   vaneDirection = VANE_W;
+									   break;
+			case  SENS_AGR_VANE_WNW :  USB.println("WNW");
+									   vaneDirection = VANE_WNW;
+									   break;
+			case  SENS_AGR_VANE_NW  :  USB.println("WN");
+									   vaneDirection = VANE_NW;
+									   break;
+			case  SENS_AGR_VANE_NNW :  USB.println("NNW");
+									   vaneDirection = VANE_NNW;
+									   break;
+		  }      	
+	}
 #endif
 
 uint8_t SensorUtils::measureSensors(int count, ...)
@@ -629,8 +690,6 @@ uint8_t SensorUtils::measureSensors(uint16_t mask)
 		SensorAgrV20.setBoardMode(SENS_ON);
 		RTC.ON();
 		
-		SensUtils.measureTemperature();
-	
 		for(uint8_t i = 0; i < xbeeZB.activeSensorMaskLength; i++)
 		{
 			if(xbeeZB.defaultOperation)
@@ -686,6 +745,7 @@ uint8_t SensorUtils::sensorValue2Chars(float value, SensorType type)
 		case TEMPERATURE:	
 		{
 			// TEMPERATURE SENSOR:   RANGE: -40° -> +125° 
+			
 			USB.print("value = "); USB.println( value );
 			value += 40;		// negative values start at 0
 			value *= 100;		// accuracy: 2 decimals  (1 dec is ok but have 4 bits left anyway)
@@ -695,7 +755,7 @@ uint8_t SensorUtils::sensorValue2Chars(float value, SensorType type)
 			temp[0] = i/256;		// (i & 0xFF00)>>8;
 			temp[1] = i%256;		// i & 0x00FF;
 			
-			#ifdef SENS_DEBUG_V2
+			#ifdef SENS_DEBUG_V3
 				USB.print("i = "); 			USB.println( (int) i );
 				USB.print("temp[0] = ");	USB.println( (int) temp[0] );
 				USB.print("temp[1] = ");	USB.println( (int) temp[1] );
@@ -764,12 +824,37 @@ uint8_t SensorUtils::sensorValue2Chars(float value, SensorType type)
 		}
 		break;
 		
+		case ANEMO:
+		{
+			an = (unsigned int) value;
+			
+			error = 0;		
+		}
+		
+		case VANE:
+		break;
+		
+		case PLUVIO:
+		{			
+			i = (unsigned int) value;
+			
+			sum_rain[0] = i/256;
+			sum_rain[1] = i%256;
+			
+				if( i == ( ((unsigned int) sum_rain[0]*256) + sum_rain[1] )  )
+				error = 0;
+			else
+				error = 1;		
+		}
+		break;
+						
 		default:
 		{
 			error = 1;
 			USB.println("Went into default");
 		}
 			break;
+			
 	}	
 	
 	return error;

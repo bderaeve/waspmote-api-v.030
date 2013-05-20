@@ -6,8 +6,9 @@
 
 //#include <inttypes.h>
 
-InsertData * Inserter[5] = {&InsertTemperature, &InsertHumidity, &InsertPressure,
-				&InsertBattery, &InsertCO2};		//WORKS
+InsertData * Inserter[NUM_SENSORS] = {&InsertTemperature, &InsertHumidity, &InsertPressure,
+				&InsertBattery, &InsertCO2, &InsertAnemo, &InsertVane, &InsertPluvio,
+				&InsertLuminosity, &InsertSolarRadiation};		//WORKS
 
 TreatData * myTreatPacket[13] = {&NotInUse, &Add_Node_Request, &Add_Node_Response,
 			&Mask_Request, &Mask_Response, &Change_Node_Frequency_Request,
@@ -299,11 +300,65 @@ uint8_t PAQUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 		return error;
 	}
 	
-	/*
-	uint8_t InsertAnemo(uint8_t * pos, char * data);
-	uint8_t InsertVane(uint8_t * pos, char * data);
-	uint8_t InsertPluvio(uint8_t * pos, char * data);
-	*/
+	
+	uint8_t InsertAnemo(uint8_t * pos, char * data)
+	{
+		uint8_t error = 2;
+	
+			#ifdef SENS_DEBUG_V2
+				USB.println("\nsendAnemo");			
+			#endif	
+		
+		error = SensUtils.sensorValue2Chars(SensUtils.anemo, ANEMO);	
+		
+		data[(*pos)++] = SensUtils.an;
+		PackUtils.packetSize++;
+		
+		return error;		
+	}
+	
+	uint8_t InsertVane(uint8_t * pos, char * data)
+	{
+		uint8_t error = 2;
+
+			#ifdef SENS_DEBUG_V2
+				USB.println("\nsendVane");			
+			#endif
+			
+		data[(*pos)++] = (int) SensUtils.vaneDirection;
+		PackUtils.packetSize++;
+		
+		return error = 0;	
+	}
+	
+	
+	uint8_t InsertPluvio(uint8_t * pos, char * data)
+	{
+		uint8_t error = 2;
+
+			#ifdef SENS_DEBUG_V2
+				USB.println("\nsendPluvio");			
+			#endif
+			
+		//SensUtils.getSummativeRainfall();	
+		error = SensUtils.sensorValue2Chars(SensUtils.summativeRainfallInMM, PLUVIO);
+		
+		data[(*pos)++] = SensUtils.sum_rain[0];
+		data[(*pos)++] = SensUtils.sum_rain[1];	
+		PackUtils.packetSize += 2;
+		
+		return error;		
+	}
+	
+	uint8_t InsertLuminosity(uint8_t * pos, char * data)
+	{
+	
+	}
+	
+	uint8_t InsertSolarRadiation(uint8_t * pos, char * data)
+	{
+	
+	}
 
 	
 /*********************************************************************************************************
@@ -338,13 +393,18 @@ uint8_t PAQUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 				COMM.sendError(NODE_RECEIVED_AN_UNAUTHORIZED_REQUEST_OF_ADD_NODE_REQUEST);
 				return error = 1;
 			}
+			else
+			{
+				#ifdef ADD_NODE_REQ_DEBUG
+					USB.println("sender authorized");
+				#endif		
+			}	
 		
 		// 2. Set the physical mask
 			error = xbeeZB.setPhysicalSensorMask( (uint8_t *) receivedPaq->data);
 				#ifdef ADD_NODE_REQ_DEBUG
 					USB.print("xbeeZB.phyMask = ");
-					USB.print( (int) xbeeZB.physicalSensorMask );
-					USB.print("\n");
+					USB.println( (int) xbeeZB.physicalSensorMask );
 				#endif
 			if(error == 1)
 			{
@@ -360,6 +420,12 @@ uint8_t PAQUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 				//contentToSend = NULL;
 				//return error = 1;
 			}
+			else
+			{
+				#ifdef ADD_NODE_REQ_DEBUG
+					USB.println("mask set ok");
+				#endif		
+			}				
 		// 2. Set received mask as active sensor mask
 			xbeeZB.setActiveSensorMask( (uint8_t *) receivedPaq->data );
 				#ifdef ADD_NODE_REQ_DEBUG
@@ -385,25 +451,25 @@ uint8_t PAQUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 		//xbeeZB.setNodeIdentifier( itoa(receivedPaq->data[2], xbeeZB.nodeID, 10) );
 		
 		// 4. If succeeded an answer containing the mask will be sent back to the gateway
-		PackUtils.packetSize = 2;
-		PackUtils.setPacketMask(xbeeZB.physicalSensorMask);
-		
-		char * contentToSend = (char *) calloc(PackUtils.packetSize + 1, sizeof(char));
-		PackUtils.escapeZerosInPacketData(contentToSend);
-		
-		error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, ADD_NODE_RES, contentToSend);
-			#ifdef ADD_NODE_REQ_DEBUG
-				USB.print("\nNODE_RES send error = "); USB.println( (int) error );
-			#endif
-		free(contentToSend);
-		contentToSend = NULL;
+			PackUtils.packetSize = 2;
+			PackUtils.setPacketMask(xbeeZB.physicalSensorMask);
+			
+			char * contentToSend = (char *) calloc(PackUtils.packetSize + 1, sizeof(char));
+			PackUtils.escapeZerosInPacketData(contentToSend);
+			
+			error = COMM.sendMessage(xbeeZB.GATEWAY_MAC, ADD_NODE_RES, contentToSend);
+				#ifdef ADD_NODE_REQ_DEBUG
+					USB.print("\nNODE_RES send error = "); USB.println( (int) error );
+				#endif
+			free(contentToSend);
+			contentToSend = NULL;
 		
 		// 5. Set in network = true
-		xbeeZB.inNetwork = true;
+			xbeeZB.inNetwork = true;
 		
 		// 6. Measure and send the sensors of the received sensor mask
-		error = SensUtils.measureSensors(xbeeZB.activeSensorMask);
-		error = PackUtils.sendMeasuredSensors(xbeeZB.GATEWAY_MAC, xbeeZB.activeSensorMask);
+			error = SensUtils.measureSensors(xbeeZB.activeSensorMask);
+			error = PackUtils.sendMeasuredSensors(xbeeZB.GATEWAY_MAC, xbeeZB.activeSensorMask);
 		
 		return error;
 	}
@@ -419,7 +485,7 @@ uint8_t PAQUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 		//free(contentToSend);
 		//contentToSend = NULL;
 		
-		COMM.sendError(NODE_RECEIVED_INVALID_PACKET_OF_TYPE_4_MASK_RES);
+		COMM.sendError(NODE_RECEIVED_INVALID_PACKET_OF_TYPE_2_ADD_NODE_RES);
 		return error = 1;
 	}
 	
@@ -488,6 +554,21 @@ uint8_t PAQUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 	uint8_t Change_Node_Frequency_Request(packetXBee * receivedPaq) // APP_ID = 5
 	{
 		uint8_t error = 2;
+			#ifdef ADD_NODE_REQ_DEBUG
+				USB.println("CH_NODE_FREQ_REQ");
+			#endif		
+		// 1. Check if sender is authorized 
+			if( !PackUtils.authorizeSender(receivedPaq) )
+			{
+				COMM.sendError(NODE_RECEIVED_AN_UNAUTHORIZED_REQUEST_OF_ADD_NODE_REQUEST);
+				return error = 1;
+			}
+			else
+			{
+				#ifdef ADD_NODE_REQ_DEBUG
+					USB.println("sender authorized");
+				#endif		
+			}			
 		
 		RTCUt.getTime();
 		
@@ -538,17 +619,34 @@ uint8_t PAQUtils::sendMeasuredSensors(uint8_t * destination, uint16_t mask)
 	uint8_t Change_Sensor_Frequency_Request(packetXBee * receivedPaq)  // APP_ID = 7
 	{
 		uint8_t error = 2;
+			#ifdef CH_SENS_FREQ_REQ_DEBUG
+				USB.println("CH_SENS_FREQ_REQ");
+			#endif		
+		// 1. Check if sender is authorized 
+			if( !PackUtils.authorizeSender(receivedPaq) )
+			{
+				COMM.sendError(NODE_RECEIVED_AN_UNAUTHORIZED_REQUEST_OF_CH_SENS_FREQ_REQUEST);
+				return error = 1;
+			}
+			else
+			{
+				#ifdef ADD_NODE_REQ_DEBUG
+					USB.println("sender authorized");
+				#endif		
+			}			
+		
+		
 		uint16_t receivedToChangeSensorsMask = ( (unsigned int) receivedPaq->data[0]*256) + receivedPaq->data[1];
 		
-			#ifdef MASK_REQ_DEBUG
-				USB.print("CH_SENS_FREQ_REQ");
-				USB.print( (int) receivedToChangeSensorsMask);
+			#ifdef CH_SENS_FREQ_REQ_DEBUG
+				USB.print("to change mask: ");
+				USB.println( (int) receivedToChangeSensorsMask);
 			#endif
 			
 		// Save the origin address
-		PackUtils.getPacketOriginAddress(receivedPaq);
+		//PackUtils.getPacketOriginAddress(receivedPaq);
 	
-		// SET INDIVIDUAL SENSOR TIMES AND NEW ACTIVE MASK
+		// 2. SET INDIVIDUAL SENSOR TIMES AND NEW ACTIVE MASK
 		error = xbeeZB.changeSensorFrequencies(receivedPaq->data);
 		USB.print("error = "); USB.println( (int) error);
 		if(error)
