@@ -51,7 +51,8 @@ void PowerUtils::enterLowPowerMode(SleepMode sm, uint16_t howLong)
 		xbeeZB.ON();
       	USB.begin();
 			#ifdef HIBERNATE_DEBUG_V2
-				USB.print("out sleep");
+				USB.print("\n\n\n-");  for(uint8_t i=0; i<60; i++){  USB.print("-"); }
+				USB.print("\nout sleep");
 			#endif
 	}	
 }
@@ -62,16 +63,17 @@ void PowerUtils::enterLowPowerMode(SleepMode sm, uint16_t howLong)
 //! time2wValuesArray[posArray] (sleep/deep). 
 void PowerUtils::enterLowPowerMode(SleepMode sm, XBeeSleepMode xbs) ///AT END OF LOOP()
 {
+	if( !RTCUt.isStillNextTimeToWakeUp() )
+	{
+		COMM.sendError(SLEEP_TIME_EXCEEDED);
+		skipThisTime2Wake(sm);
+	}
+
 	if(sm == HIBERNATE)
 	{
-			#ifdef WASPMOTE_SLEEP_MODE_DEBUG
-				USB.print("\nHIBERNATE\n");
-			#endif
-			#ifdef HIBERNATE_DEBUG_V2
-				USB.print("\n\nEntering HIBERNATE at ");
-				USB.println(RTC.getTime());
-				USB.print("till ");
-				USB.println(RTCUt.nextTime2WakeUpChar);
+			#ifdef FINAL_USB_DEBUG
+				USB.print("HIBERNATE at "); USB.print(RTC.getTime());
+				USB.print(" till "); USB.println( RTCUt.nextTime2WakeUpChar );
 			#endif
 		
 		/// Store important parameters
@@ -82,14 +84,9 @@ void PowerUtils::enterLowPowerMode(SleepMode sm, XBeeSleepMode xbs) ///AT END OF
 	}
 	else if(sm == DEEPSLEEP)  /// CANNOT BE COMBINED WITH HIBERNATE
 	{
-			#ifdef WASPMOTE_SLEEP_MODE_DEBUG
-				USB.print("\nDEEPSLEEP\n");
-			#endif	
-			#ifdef DEEPSLEEP_DEBUG
-				USB.print("\nentering deepsleep at "); 
-				USB.print(RTC.getTime());
-				USB.print("till "); 
-				USB.print( RTCUt.nextTime2WakeUpChar );
+			#ifdef FINAL_USB_DEBUG
+				USB.print("DEEPSLEEP at "); USB.print(RTC.getTime());
+				USB.print(" till "); USB.println( RTCUt.nextTime2WakeUpChar );
 			#endif
 			
 		if(xbs == XBEE_SLEEP_DISABLED)
@@ -99,32 +96,36 @@ void PowerUtils::enterLowPowerMode(SleepMode sm, XBeeSleepMode xbs) ///AT END OF
 		}
 		else
 		{
-			PWR.deepSleep(RTCUt.nextTime2WakeUpChar, RTC_OFFSET, RTC_ALM1_MODE2, SENS_OFF | UART1_OFF | BAT_OFF | RTC_OFF);
+			PWR.deepSleep(RTCUt.nextTime2WakeUpChar, RTC_ABSOLUTE, RTC_ALM1_MODE3, SENS_OFF | UART1_OFF | BAT_OFF | RTC_OFF);
+			//xbeeZB.ON();
 			xbeeZB.wake();
 		}
 		
 		RTC.ON();
 		RTCUt.getTime();
-		RTC.setMode(RTC_OFF,RTC_NORMAL_MODE);  //this will save power
-			
+		RTC.setMode(RTC_OFF,RTC_NORMAL_MODE);  //this will save power	
 		USB.begin();
-			#ifdef DEEPSLEEP_DEBUG
-				USB.print("awake at "); USB.println(RTC.getTime());
+		
+			#ifdef FINAL_USB_DEBUG
+				USB.print("\n-");  for(uint8_t i=0; i<60; i++){  USB.print("-"); }
+				USB.print("\nAwake at "); USB.println(RTC.getTime());
 			#endif
+			
 		if(xbeeZB.defaultOperation)
 		{
 			RTCUt.setNextTimeWhenToWakeUpViaOffset(xbeeZB.defaultTime2WakeInt);
 		}
 		else
 		{
-				#ifdef DEEPSLEEP_DEBUG
+				#ifdef DEEPSLEEP_DEBUG_V2
 					USB.print("out of sleep, posInArray = ");
-					USB.println( (int) posInArray );
+					USB.println( (int) xbeeZB.posInArray );
 					USB.print("next t2s = ");
-					USB.println( (int) time2wValuesArray[posInArray]);
-					USB.println( (int) time2wValuesArray[posInArray + 1]);
-					USB.println( (int) (time2wValuesArray[posInArray + 1] - time2wValuesArray[posInArray]) );
-				#endif
+					USB.println( (int) xbeeZB.time2wValuesArray[xbeeZB.posInArray]);
+					USB.println( (int) xbeeZB.time2wValuesArray[xbeeZB.posInArray + 1]);
+					USB.println( (int) (xbeeZB.time2wValuesArray[xbeeZB.posInArray + 1] - xbeeZB.time2wValuesArray[xbeeZB.posInArray]) );
+				#endif				
+				
 			xbeeZB.findNextTime2Wake(DEEPSLEEP);
 			xbeeZB.updatePosInArray();	
 		}
@@ -132,11 +133,8 @@ void PowerUtils::enterLowPowerMode(SleepMode sm, XBeeSleepMode xbs) ///AT END OF
 	}
 	else if(sm == SLEEP)
 	{
-			#ifdef WASPMOTE_SLEEP_MODE_DEBUG
-				USB.print("\nSLEEP\n");
-			#endif	
-			#ifdef SLEEP_DEBUG
-				USB.print("\nentering sleep at "); USB.println(RTC.getTime());
+			#ifdef FINAL_USB_DEBUG
+				USB.print("SLEEP at "); USB.println(RTC.getTime());
 			#endif
 		sleepTillNextTime2Wake(xbs);
 
@@ -144,24 +142,23 @@ void PowerUtils::enterLowPowerMode(SleepMode sm, XBeeSleepMode xbs) ///AT END OF
 		RTCUt.getTime();
 		RTC.setMode(RTC_OFF,RTC_NORMAL_MODE);  //this will save power
 		RTCUt.setAwakeAtTime();
-      	
+		
 		USB.begin();
-			#ifdef SLEEP_DEBUG
-				USB.print("awake at");  USB.println(RTC.getTime());
+			#ifdef FINAL_USB_DEBUG
+				USB.print("\n\n\n-");  for(uint8_t i=0; i<60; i++){  USB.print("-"); }
+				USB.print("\nAwake at");  USB.println(RTC.getTime());
 			#endif		
 	
 		if( intFlag & WTD_INT )  //"can be used as out of sleep interrupt"
-        {
+		{
 			intFlag &= ~(WTD_INT);
 			if(!xbeeZB.defaultOperation) xbeeZB.updatePosInArray();
-			
 				#ifdef SLEEP_DEBUG
 					USB.print("posInArray ");
 					USB.println( (int) xbeeZB.posInArray );
 				#endif
-			
 			/// GOTO "device enters loop"
-        }
+		}
 	}	
 }
 
@@ -175,7 +172,7 @@ void PowerUtils::enterLowPowerMode(SleepMode sm)
 void PowerUtils::enterLowPowerMode() ///AT END OF LOOP()   AUTO SELECTION SLEEP MODE 
 {
 	if(RTCUt.nextTime2WakeUpHoursMinsSecsInt <= 2)
-		enterLowPowerMode(SLEEP, XBEE_SLEEP_ENABLED);
+		enterLowPowerMode(SLEEP, XBEE_SLEEP_ENABLED); /// Then we can spare 2.5 seconds in the next loop
 	else
 		enterLowPowerMode(HIBERNATE, XBEE_SLEEP_DISABLED);
 } 
@@ -289,6 +286,7 @@ void PowerUtils::sleepTillNextTime2Wake(XBeeSleepMode xbs)
 	}
 		#ifdef SLEEP_DEBUG
 			USB.begin();
+			USB.print("\n\n\n-");  for(uint8_t i=0; i<60; i++){  USB.print("-"); } 
 			USB.print("\nslept for "); USB.println( (int) count );
 		#endif
 }
@@ -305,31 +303,36 @@ void PowerUtils::sleepTillNextTime2Wake(XBeeSleepMode xbs)
 void PowerUtils::enterLowPowerModeWeatherStation(XBeeSleepMode xbs) ///AT END OF LOOP()
 {
 	/// SleepMode = DEEPSLEEP (from the moment we implement hibernate we can no longer re-enable pluviometer interrupts
-	
 			#ifdef WASPMOTE_WEATHER_SLEEP_DEBUG
-				//USB.print("\nDEEPSLEEP\n");
-			#endif	
-			#ifdef WASPMOTE_WEATHER_SLEEP_DEBUG
-				USB.print("\nentering deepsleep at "); 
+				USB.print("\nentering weather deepsleep at "); 
 				USB.print(RTC.getTime());
 				USB.print("till "); 
 				USB.print( RTCUt.nextTime2WakeUpChar );
 			#endif
+			
+	if( !RTCUt.isStillNextTimeToWakeUp() )
+	{
+		USB.print("\n!!SLEEP TIME EXCEEDED!!\n");
 		
+		/// SEND ERROR TO GATEWAY 
+		COMM.sendError(SLEEP_TIME_EXCEEDED);
+		
+		skipThisTime2Wake(DEEPSLEEP);
+	}		
+	
+	USB.print("\n!!SLEEP TIME OK!!\n");
 	if(xbs == XBEE_SLEEP_DISABLED)
 	{
 		//Put the mote to sleep with pluviometer interruptions enabled
-		//PWR.deepSleep(RTCUt.nextTime2WakeUpChar, RTC_ABSOLUTE, RTC_ALM1_MODE3, ALL_OFF);
 		SensorAgrV20.sleepAgr(RTCUt.nextTime2WakeUpChar, RTC_ABSOLUTE, RTC_ALM1_MODE3, UART0_OFF | UART1_OFF | BAT_OFF | RTC_OFF, SENS_AGR_PLUVIOMETER);
 			
-		//xbeeZB.ON();
+		xbeeZB.ON();
 	}
 	else
 	{
 		//Put the mote to sleep with pluviometer interruptions enabled and ZigBee sleep
 		SensorAgrV20.sleepAgr(RTCUt.nextTime2WakeUpChar, RTC_ABSOLUTE, RTC_ALM1_MODE3, UART1_OFF | BAT_OFF | RTC_OFF, SENS_AGR_PLUVIOMETER);
-		//PWR.deepSleep(RTCUt.nextTime2WakeUpChar, RTC_OFFSET, RTC_ALM1_MODE2, SENS_OFF | UART1_OFF | BAT_OFF | RTC_OFF);
-		
+		xbeeZB.wake();
 		//xbeeZB.wake();
 	}
 	
@@ -348,12 +351,7 @@ void PowerUtils::enterLowPowerModeWeatherStation(XBeeSleepMode xbs) ///AT END OF
 				USB.print("\nRain INTERRUPT received at "); USB.println(RTC.getTime());
 			#endif
 		SensUtils.rainfall_ISR();
-		
-		if(SensUtils.startedRaining)
-		{
-			COMM.sendMessage(xbeeZB.GATEWAY_MAC, STARTED_RAINING, "");
-		}
-		
+				
 		// Clearing the interruption flag before coming back to sleep
 		clearIntFlag();
 		enterLowPowerModeWeatherStation(xbs);
@@ -363,8 +361,11 @@ void PowerUtils::enterLowPowerModeWeatherStation(XBeeSleepMode xbs) ///AT END OF
 	else if(intFlag & RTC_INT)
 	{
 		USB.begin();
+			#ifdef FINAL_USB_DEBUG
+				USB.print("\n\n\n-");  for(uint8_t i=0; i<60; i++){  USB.print("-"); }
+			#endif 		
 			#ifdef WASPMOTE_WEATHER_SLEEP_DEBUG
-				USB.print("\nawake at "); USB.println(RTC.getTime());
+				USB.print("\nAwake at "); USB.println(RTC.getTime());
 			#endif			
 			
 		if(xbeeZB.defaultOperation)
@@ -391,6 +392,44 @@ void PowerUtils::enterLowPowerModeWeatherStation(XBeeSleepMode xbs) ///AT END OF
 	}
 }
 #endif
+
+
+void PowerUtils::skipThisTime2Wake(SleepMode sm)
+{
+	switch(sm)
+	{
+		case	HIBERNATE : 
+					if(xbeeZB.defaultOperation)
+						RTCUt.setNextTimeWhenToWakeUpViaOffset(xbeeZB.defaultTime2WakeInt);
+					else
+						xbeeZB.findNextTime2Wake(HIBERNATE);
+				break;
+		
+		case	DEEPSLEEP :
+					if(xbeeZB.defaultOperation)
+					{
+						RTCUt.setNextTimeWhenToWakeUpViaOffset(xbeeZB.defaultTime2WakeInt);
+					}
+					else
+					{
+							//#ifdef DEEPSLEEP_DEBUG
+								USB.print("out of sleep, posInArray = ");
+								USB.println( (int) xbeeZB.posInArray );
+								USB.print("next t2s = ");
+								USB.println( (int) xbeeZB.time2wValuesArray[xbeeZB.posInArray]);
+								USB.println( (int) xbeeZB.time2wValuesArray[xbeeZB.posInArray + 1]);
+								USB.println( (int) (xbeeZB.time2wValuesArray[xbeeZB.posInArray + 1] - xbeeZB.time2wValuesArray[xbeeZB.posInArray]) );
+							//#endif
+						xbeeZB.findNextTime2Wake(DEEPSLEEP);
+						xbeeZB.updatePosInArray();	
+					}		
+				break;
+				
+		case	SLEEP	  : 
+					/// handled in sleepTillNextTime2Wake(xbs)
+				break;
+	}
+}
 
 
 PowerUtils PWRUt = PowerUtils();

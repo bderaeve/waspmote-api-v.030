@@ -5,7 +5,7 @@
  * ==========================================================================
  *
  *       Filename:  RTC.h
- *    Description:  Extension to the libeliums RTC functions in WaspRTC.h
+ *    Description:  Extension to the libelium RTC functions in WaspRTC.h
  *					This because the hibernate function can not deal with times
  *					received from RTC.getTime() or RTC.getAlarm() but only
  *					with char * in the form of "dd:hh:mm:ss"
@@ -27,9 +27,6 @@
 /******************************************************************************
  * Includes
  ******************************************************************************/
-
-//#include <inttypes.h>
-
 
 /******************************************************************************
  * Definitions & Declarations
@@ -95,6 +92,12 @@ class RTCUtils
 		 */		
 		uint8_t setNextTimeWhenToWakeUpViaOffset(uint16_t);
 		
+		
+		//! !!Function only usable for 'ROUTER' devices!!
+		/*!   The router will loop on receiving messages until an interrupt
+		 *    is received from alarm1. Then the sensors will be measured and sent. Next
+		 *    the node will go back to the receiving messages loop.
+		 */
 		uint8_t setNextTimeWhenToMeasureInAlarm1(uint16_t);
 		
 		//! converts the value returned from WaspRTC:RTC to an int value compactible
@@ -106,6 +109,11 @@ class RTCUtils
 		//! with our timing system
 		void convertAlarm1ToInt();
 
+		
+		//! Checks if the current time is still < the next time to wake. If this is
+		//! no longer the case the current next time to wake must be replaced by the
+		//! following next time to wake.
+		bool isStillNextTimeToWakeUp();
 		
 	
 		//!

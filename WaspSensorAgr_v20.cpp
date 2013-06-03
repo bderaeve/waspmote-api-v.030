@@ -321,7 +321,7 @@ float WaspSensorAgr_v20::readDendrometer()
 	}
 	#endif	
   
-	return value_dendro = conversion(data_dendro,0);
+	return 2; //value_dendro = conversion(data_dendro,0);
 }
 
 float WaspSensorAgr_v20::readAnemometer()
@@ -392,7 +392,7 @@ float WaspSensorAgr_v20::readPT1000()
 		RTC.setMode(RTC_OFF, RTC_I2C_MODE);
 	}
 	#endif
-	return value_pt1000 = conversion(data_pt1000,1);  
+	return 2;//value_pt1000 = conversion(data_pt1000,1);  
 }
 
 float WaspSensorAgr_v20::readRadiation()
@@ -687,9 +687,10 @@ uint16_t WaspSensorAgr_v20::readPluviometer()
 	return value_pluviometer;
 }
 
-
+/*
 float WaspSensorAgr_v20::conversion(byte data_input[3], uint8_t type)
 {
+
 	long val = 0;
 	float val_def = 0;
 	int signo = 0;
@@ -744,7 +745,7 @@ float WaspSensorAgr_v20::conversion(byte data_input[3], uint8_t type)
 	}
 	else if( type==0) return ( (val_def * 11000)/1000.0 );
 }
-
+*/
 
 
 float WaspSensorAgr_v20::pressure_conversion(int readValue)

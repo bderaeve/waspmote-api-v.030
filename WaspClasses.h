@@ -51,6 +51,10 @@
 
 #include "wiring.h"
 
+// AES
+#include "aes/aes.h"
+#include "WaspAES.h"
+
 // SD
 /*
 #include "sd_raw_config.h"
@@ -116,14 +120,9 @@
 		#include "WaspXBeeXSC.h"
 	#endif	
 	
-	#ifdef USE_WASP_SENSOR_AGR	
-		#include "WaspSensorAgr.h"
-	#endif
-	
-	//#ifdef USE_WASP_SENSOR_GAS	
-		#include "WaspSensorGas.h"
-	//#endif
-	
+#include "WaspSensorAgr.h"	
+#include "WaspSensorGas.h"
+		
 	#ifdef USE_WASP_SENSOR_EVENT
 		#include "WaspSensorEvent.h"
 	#endif

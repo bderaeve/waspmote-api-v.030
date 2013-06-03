@@ -31,6 +31,7 @@
 /******************************************************************************
  * Definitions & Declarations
  ******************************************************************************/
+#define fm "Free Memory: "
 #define WASPMOTE_WEATHER_SLEEP_DEBUG	
 /******************************************************************************
  * Class
@@ -118,6 +119,11 @@ class PowerUtils
 		
 		#endif
 	
+		//!
+		/*! Function that selects the next time to wait in case the node has been
+		 *  working to long and the current time to wake is already passed in time.
+		 */
+		void skipThisTime2Wake(SleepMode);
 
 		//!
 		/*! Stores the next time to wake up offset as WaspRTC:hibernate compactible

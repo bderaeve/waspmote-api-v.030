@@ -25,8 +25,10 @@
 
 #ifdef __cplusplus
 
+#define FM "Free Memory: "
+//#define WEATHER_STATION
+//#define POWER_MODES
 
-#define WEATHER_STATION
 
 #include "WaspXBeeZBNode.h"
 #include "CommUtils.h"

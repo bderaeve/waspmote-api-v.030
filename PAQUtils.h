@@ -25,18 +25,37 @@
 
 //!
 /*! Defines the packet types recognized by the Waspmote
- */		
-typedef enum {DONT_USE, ADD_NODE_REQ, ADD_NODE_RES, MASK_REQ, MASK_RES, CH_NODE_FREQ_REQ,
-	CH_NODE_FREQ_RES, CH_SENS_FREQ_REQ, CH_SENS_FREQ_RES, IO_REQUEST, IO_DATA,
-	RECEIVE_ERROR, SEND_ERROR, CHANGE_MODE_REQ, CHANGE_MODE_RES, STARTED_RAINING}
+ */	
+#define NUM_APP_IDS 18 
+typedef enum {DONT_USE, ADD_NODE_REQ, ADD_NODE_RES, 
+			  MASK_REQ, MASK_RES, 
+			  CH_NODE_FREQ_REQ, CH_NODE_FREQ_RES, 
+			  CH_SENS_FREQ_REQ, CH_SENS_FREQ_RES, 
+			  IO_REQUEST, IO_DATA,
+			  RECEIVE_ERROR, SEND_ERROR,
+			  SET_POWER_PLAN_REQ, SET_POWER_PLAN_RES, 
+			  SET_ENCRYPTION_REQ, SET_ENCRYPTION_RES,
+			  RESET_PLUVIOMETER}
 	ApplicationIDs;
 
+	
+typedef enum {SEND_STORED_TEMPERATURES,
+			  SEND_STORED_HUMIDITIES,
+			  SEND_STORED_PRESSURES,
+			  SEND_STORED_BATTERIES,
+			  SEND_STORED_CO2S,
+			  SEND_STORED_ANEMOS,
+			  SEND_STORED_VANES,
+			  SEND_STORED_PLUVIOS,
+			  SEND_STORED_LUMINOSITIES,
+			  SEND_STORED_RADIATIONS}
+	SendStoredSampleApplicationIDs; /// enum value += NUM_APP_IDS
 	
 //!
 /*! Contains the errors that can be notified to the gateway via an SEND_ERROR packet
  */			
 typedef enum {	// INVALID PACKET RECEIVED
-				/* 0:*/ NOT_IN_USE,
+				/* 0:*/ NOT_IN_USE = 0,
 				/* 1:*/ NODE_RECEIVED_INVALID_PACKET_OF_TYPE_0_DONT_USE,
 				/* 2:*/ NODE_RECEIVED_INVALID_PACKET_OF_TYPE_2_ADD_NODE_RES,
 				/* 3:*/ NODE_RECEIVED_INVALID_PACKET_OF_TYPE_4_MASK_RES,
@@ -44,19 +63,52 @@ typedef enum {	// INVALID PACKET RECEIVED
 				/* 5:*/ NODE_RECEIVED_INVALID_PACKET_OF_TYPE_8_CH_SENS_FREQ_RES,
 				/* 6:*/ NODE_RECEIVED_INVALID_PACKET_OF_TYPE_10_IO_DATA,
 				/* 7:*/ NODE_RECEIVED_INVALID_PACKET_OF_TYPE_12_SEND_ERROR,
+				/* 8:*/	NODE_RECEIVED_INVALID_PACKET_OF_TYPE_14_SET_POWER_PLAN_RESPONSE,
+				/* 9:*/	NODE_RECEIVED_INVALID_PACKET_OF_TYPE_16_SET_ENCRYPTION_RESPONSE,
+				/*10:*/ NODE_RECEIVED_INVALID_PACKET_OF_TYPE_18_STARTED_RAINING,
 				// INVALID PACKET CONTENT RECEIVED
-				/* 8:*/ NODE_RECEIVED_AN_UNKNOWN_PACKET_TYPE,
-				/* 9:*/ NODE_RECEIVED_INVALID_MASK_IN_ADD_NODE_REQUEST,
-				/*10:*/ MASK_RECEIVED_IN_ADD_NODE_REQUEST_WAS_REFUSED_BY_THE_PHYSICAL_MASK,
-				/*11:*/ NODE_RECEIVED_INVALID_NEW_DEFAULT_SLEEP_TIME,
-				/*12:*/ NODE_RECEIVED_EMPTY_SENSOR_MASK_IN_CH_SENS_FREQ_REQ,
-				/*13:*/ NODE_HAS_NO_LONGER_ACTIVE_SENSORS,
-				/*14:*/ NODE_HAD_AN_ERROR_IN_SET_NEW_DIFFERENT_SLEEP_TIMES,
+				/*10:*/ NODE_RECEIVED_AN_UNKNOWN_PACKET_TYPE,
+				/*11:*/ NODE_RECEIVED_INVALID_MASK_IN_ADD_NODE_REQUEST,
+				/*12:*/ NODE_RECEIVED_INVALID_NEW_DEFAULT_SLEEP_TIME,
+				/*13:*/ NODE_RECEIVED_EMPTY_SENSOR_MASK_IN_CH_SENS_FREQ_REQ,
+				/*14:*/ NODE_HAS_NO_LONGER_ACTIVE_SENSORS,
+				/*15:*/ NODE_HAD_AN_ERROR_IN_SET_NEW_DIFFERENT_SLEEP_TIMES,
+				/*16:*/ NODE_RECEIVED_A_MASK_THAT_DOESNT_MATCH_PHY_MASK_IN_IO_REQ,
+				/*17:*/	INVALID_MASK_RECEIVED_IN_CH_SENS_FREQ_REQ__SENSOR_IS_NOT_IN_THE_NODES_PHY_MASK,
+				/*18:*/	INVALID_POWER_PLAN_RECEIVED_IN_SET_POWER_PLAN_REQ,
+				/*19:*/	INVALID_ENCRYPTION_MODE_RECEIVED_IN_SET_ENCRYPTION_REQ,
 				// PROGRAM ERRORS
-				/*15:*/ NODE_HAD_AN_ERROR_IN_XBEEZB_CHANGE_SENSOR_FREQUENCIES,
+				/*20:*/ NODE_HAD_AN_ERROR_IN_XBEEZB_CHANGE_SENSOR_FREQUENCIES,
+				/*21:*/ SLEEP_TIME_EXCEEDED,
+				/*22:*/	NODE_HAD_AN_ERROR_IN_SENSOR_VALUE_2_CHARS,
+				/*23:*/ NODE_HAD_AN_ERROR_IN_PAQ_UTILS_IO_REQUEST_SENDING_SAMPLES,
+				/*24:*/ NODE_HAD_AN_ERROR_IN_PAQ_UTILS_IO_REQUEST_MEASURE_SENSORS,
+				/*25:*/	NODE_HAD_AN_ERROR_IN_SEND_MEASURED_SENSORS_IN_ONE_OF_THE_INSERTER_FUNPTRS,
+				/*26:*/	NODE_HAD_AN_ERROR_IN_SEND_MEASURED_SENSORS_MASK_WAS_EMPTY,
+				/*27:*/	NODE_HAD_AN_ERROR_IN_REGISTER_SENSOR_MEASURING_INTERVAL_TIME,
+				/*28:*/	NODE_HAD_AN_ERROR_IN_KEEP_SENSOR_VALUES_IN_MEMORY,
+				/*29:*/	NODE_HAD_AN_ERROR_IN_MEASURE_SENSORS_RECEIVED_AN_EMPTY_MASK,
+				/*30:*/	NODE_HAD_AN_ERROR_IN_GET_MASK_LENGTH,
 				//UNAUTHORIZED REQUESTS
-				/*16:*/ NODE_RECEIVED_AN_UNAUTHORIZED_REQUEST_OF_ADD_NODE_REQUEST,
-				/*17:*/ NODE_RECEIVED_AN_UNAUTHORIZED_REQUEST_OF_CH_SENS_FREQ_REQUEST
+				/*31:*/ NODE_RECEIVED_AN_UNAUTHORIZED_REQUEST_OF_ADD_NODE_REQUEST,
+				/*32:*/	NODE_RECEIVED_AN_UNAUTHORIZED_REQUEST_OF_MASK_REQUEST,
+				/*33:*/	NODE_RECEIVED_AN_UNAUTHORIZED_REQUEST_OF_CH_NODE_FREQ_REQUEST,
+				/*34:*/ NODE_RECEIVED_AN_UNAUTHORIZED_REQUEST_OF_CH_SENS_FREQ_REQUEST,
+				/*35:*/ NODE_RECEIVED_AN_UNAUTHORIZED_REQUEST_OF_IO_REQUEST,
+				/*36:*/	NODE_RECEIVED_AN_UNAUTHORIZED_REQUEST_OF_SET_POWER_PLAN_REQUEST,
+				/*37:*/	NODE_RECEIVED_AN_UNAUTHORIZED_REQUEST_OF_SET_ENCRYPTION_REQUEST,
+				/*38:*/	NODE_HAS_NOT_BEEN_INVITED_TO_THE_NETWORK_YET___USE_ADD_NODE_REQ,
+				//COMMUNICATION ERRORS (saved in EEPROM)
+				/*39:*/	ERROR_SETTING_UP_XBEE_MODULE,
+				/*40:*/	CHECK_NODE_ASSOCIATION_RETURNED_1_NO_REACHABLE_PARENT_FOUND,
+				/*41:*/	CHECK_NODE_ASSOCIATION_RETURNED_2_XBEE_NOT_DETECTED_ON_WASPMOTE,
+				/*42:*/	SEND_MEASURED_SENSORS_RETURNED_1_NOT_SENT_DUE_TO_SLEEP,
+				/*43:*/	SEND_MEASURED_SENSORS_RETURNED_2_NOT_SENT_OR_MESSAGE_LOST,
+				/*44:*/	FATAL_ERROR_NODE_FAILED_THE_RETRY_THE_JOINING_PROCESS_PARENT_UNREACHABLE,
+				/*45:*/	NODE_FAILED_TO_SEND_THE_MEASURED_SENSORS_AFTER_A_SUCCESSFULL_RETRY_JOINING,
+				//WARNINGS
+				/*46:*/	NODE_HAD_TO_RETRY_THE_JOINING_PROCESS__PROBABLY_LOW_RSSI,
+				/*47:*/	RAIN_METER_HAS_BEEN_RESET
 			}
 	Errors;
 
@@ -77,6 +129,8 @@ extern uint8_t InsertVane(uint8_t *, char *);
 extern uint8_t InsertPluvio(uint8_t *, char *);
 extern uint8_t InsertLuminosity(uint8_t *, char *);
 extern uint8_t InsertSolarRadiation(uint8_t *, char *);
+
+//typedef uint8_t SendStoredSamples( void );
 
 
 
@@ -185,6 +239,37 @@ typedef uint8_t TreatData( packetXBee *);
 	 */	
 	extern uint8_t Send_Error(packetXBee *); // APP_ID = 12
 	
+	
+	//! This function is called by the receive function in 'CommUtils.h' if the
+	//! received packet is a request to change the node's power plan.
+	/*!
+	 *  \@post: this function will send an answer with the new power plan back if the 
+	 *      received plan was valid else it will send an error message back.
+	 *  \param:	a packetXBee which contains the power plan
+	 */	
+	extern uint8_t Set_Power_Plan_Request(packetXBee *); // APP_ID = 13
+	//! SHOULD NEVER BE RECEIVED
+	/*!
+	 *	\@post: will send an error message to the gateway
+	 */		
+	extern uint8_t Set_Power_plan_Response(packetXBee *); // APP_ID = 14
+	
+	
+	//! This function is called by the receive function in 'CommUtils.h' if the
+	//! received packet is a request to change or set a new frequency for certain sensors
+	/*!
+	 *	\param: packetXBee which contains a sensor mask and corresponding frequencies
+	 *	\@post: the sensors will get individual measure frequencies and the node will
+	 *			try to find an efficient way to measure / sleep
+	 */		
+	extern uint8_t Set_Encryption_Request(packetXBee *);  // APP_ID = 15
+	extern uint8_t Set_Encryption_Response(packetXBee *); // APP_ID = 16
+	
+	
+	
+	extern uint8_t ResetPluvioMeter(packetXBee *); // APP_ID = 17
+
+	
 
 
 	
@@ -197,7 +282,6 @@ typedef uint8_t TreatData( packetXBee *);
 class PAQUtils
 {
 	private:
-		
 	
 	public:
 		//! class constructor
@@ -241,7 +325,31 @@ class PAQUtils
 		//for reading in an error message
 		//void readPacketData(packetXBee *);
 		uint8_t sendMask(uint8_t *, uint8_t, uint16_t);
+		
+		//! It sends the measured sensors
+		/*! @pre: 'SensUtils.measureSensors(xbeeZB.activeSensorMask)'
+		 *  \param 1: The destination address
+		 *	\param 2: The mask containing the sensors to be sent
+		 *	\return error=3 --> The command has not been executed, mask was empty?
+					error=2 --> The sensors could not be sent or the message is lost
+					error=1 --> *Without XBee Sleep: The message could not be sent
+								*With XBee Sleep: The message hangs in parent buffer and will be 
+								 delivered when the end device wakes up
+					error=0 --> The command has been executed with no errors
+		 */
 		uint8_t sendMeasuredSensors(uint8_t *, uint16_t);
+		
+		//! It sends the sensors 
+		uint8_t sendStoredSensors(uint8_t *);
+		
+		uint8_t sendStoredErrors(uint8_t *);
+		
+		//! It is called by 'CH_SENS_FREQ_REQ'.
+		/*! It inserts the measuring intervals of the sensors found in the mask (param1)
+		 *  into the 'packetData' variable.
+		 *  It also sets the packet mask.
+		 */
+		void insertFrequenciesInPacketData(uint16_t mask);
 		
 		
 		//!

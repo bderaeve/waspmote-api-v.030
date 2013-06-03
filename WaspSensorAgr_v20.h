@@ -319,7 +319,7 @@ private:
 	\param uint8_t type : temperature(1) or dendrometer(0)
 	\return the value converted
 	 */
-	float conversion(byte data_input[3], uint8_t type);
+	//float conversion(byte data_input[3], uint8_t type);
 	
 	//! It converts pressure
   	/*!

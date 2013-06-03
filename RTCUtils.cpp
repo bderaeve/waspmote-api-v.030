@@ -23,7 +23,7 @@ RTCUtils::RTCUtils()
 
 void RTCUtils::reinitialize()
 {
-	RTC.setTime("00:00:00:00:00:00:00");
+	RTC.setTime("13:04:04:05:00:00:00");
 	getTime();
 		#ifdef FINAL_DEBUG_NODE
 			COMM.sendMessage(xbeeZB.GATEWAY_MAC, "RTC has been reset");	
@@ -179,6 +179,26 @@ uint8_t RTCUtils::setNextTimeWhenToWakeUpViaOffset(uint16_t offset)
 			#endif
 			
 		return error;
+}
+
+
+bool RTCUtils::isStillNextTimeToWakeUp()
+{
+	RTCUt.getTime();
+	if(nextTime2WakeUpHoursMinsSecsInt > RTCSecMinHourInt)
+	{
+			#ifdef FINAL_USB_DEBUG
+				USB.println("TRUE: ");
+			#endif
+		return true;
+	}
+	else
+	{
+			#ifdef FINAL_USB_DEBUG
+				USB.println("FALSE: ");
+			#endif	
+		return false;
+	}
 }
 
 

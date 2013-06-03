@@ -4,16 +4,17 @@
 	#include "WaspClasses.h"
 #endif
 
-//#include <inttypes.h>
-
 /*********************************************************************************************************
   *
   * CONSTRUCTOR / DEFAULT VALUES
   *
   *******************************************************************************************************/
 StoreSensorData * Saver[5] = { &saveTemperature, &saveHumidity, &savePressure,
-			&saveBattery, &saveCO2};
-
+			&saveBattery, &saveCO2 };
+#ifdef POWER_MODES			
+ReadSensorSamplesFromEEPROM * EEPROM_Reader[5] = { &readTemperatureFromEEPROM, &readHumidityFromEEPROM,
+			&readPressureFromEEPROM, &readBatteryFromEEPROM, &readCO2FromEEPROM };
+#endif
 			
 SensorUtils::SensorUtils()
 {
@@ -33,8 +34,12 @@ SensorUtils::SensorUtils()
 	for(uint8_t i=0; i<NUM_SENSORS; i++)
 		measuringInterval[i] = xbeeZB.defaultTime2WakeInt;
 		
+	for(uint8_t i=0; i<NUM_SENSORS; i++)
+		savedPositions[i] = 0;	
+		
 	pluviometerCounter = 0;
 	startedRaining = true;
+	forceHighPerformance = false;
 	
 	acceptedSensorMask = 0;
 	#ifdef WEATHER_STATION /// AGRICULTURE SENSOR BOARD V2
@@ -64,9 +69,8 @@ SensorUtils::SensorUtils()
   *******************************************************************************************************/
 void SensorUtils::measureTemperature()
 {
-
 		#ifdef SENS_DEBUG_V2
-			USB.println("measureTemperature");
+			USB.print(" T=");
 		#endif
 		
 	temperature = 0;
@@ -79,10 +83,9 @@ void SensorUtils::measureTemperature()
 		{
 			// TEMPERATURE SENSOR:   RANGE: -40° -> +125° 
 			temperature += SensorGasv20.readValue(SENS_TEMPERATURE);
-			//delay(100);
 		}
 		temperature /= NUM_MEASUREMENTS;
-		USB.println(temperature);
+		//USB.println(temperature);
 
 			#ifdef SENS_DEBUG
 				previous = millis();
@@ -107,15 +110,10 @@ void SensorUtils::measureTemperature()
 			#endif
 			
 			#ifdef SENS_DEBUG_V2
-				USB.print("T = "); USB.println( temperature );
+				USB.print( temperature );
 			#endif
 			
 		SensorGasv20.setSensorMode(SENS_OFF, SENS_TEMPERATURE);
-		
-		#ifdef SENS_DEBUG
-			previous = millis() - previous;
-			USB.print("SensorUtils::measureTemperature() took  ms"); USB.println(previous);
-		#endif
 		
 	#else   /// WEATHER STATION
 	
@@ -129,8 +127,11 @@ void SensorUtils::measureTemperature()
 			delay(10);
 		}
 		SensorAgrV20.setSensorMode(SENS_OFF, SENS_AGR_TEMPERATURE);
-		temperature /= NUM_MEASUREMENTS;	
-	
+		temperature /= NUM_MEASUREMENTS;
+		temperature -= 1;
+			#ifdef SENS_DEBUG_V2
+				USB.print( temperature );
+			#endif		
 	#endif
 }
 
@@ -138,7 +139,7 @@ void SensorUtils::measureTemperature()
 void SensorUtils::measureHumidity()
 {
 		#ifdef SENS_DEBUG_V2
-			USB.println("measureHumidity");
+			USB.print(" H=");
 		#endif
 	
 	humidity = 0;
@@ -154,6 +155,10 @@ void SensorUtils::measureHumidity()
 			humidity += SensorGasv20.readValue(SENS_HUMIDITY);
 		}
 		humidity /= NUM_MEASUREMENTS;
+		
+			#ifdef SENS_DEBUG_V2
+				USB.print( humidity );
+			#endif		
 		
 			#ifdef SENS_DEBUG
 				previous = millis();
@@ -178,10 +183,6 @@ void SensorUtils::measureHumidity()
 			#endif
 			
 		SensorGasv20.setSensorMode(SENS_OFF, SENS_HUMIDITY);
-		#ifdef SENS_DEBUG
-			previous = millis() - previous;
-			USB.print("SensorUtils::measureHumidity() took  ms"); USB.println(previous);
-		#endif
 	
 	#else     /// WEATHER STATION
 	
@@ -195,6 +196,9 @@ void SensorUtils::measureHumidity()
 		}
 		SensorAgrV20.setSensorMode(SENS_OFF, SENS_AGR_HUMIDITY);
 		humidity /= NUM_MEASUREMENTS;	
+			#ifdef SENS_DEBUG_V2
+				USB.print( humidity );
+			#endif			
 		
 	#endif
 }
@@ -203,7 +207,7 @@ void SensorUtils::measureHumidity()
 void SensorUtils::measurePressure()
 {
 		#ifdef SENS_DEBUG_V2
-			USB.println("measurePressure");
+			USB.print(" P=");
 		#endif
 	
 	pressure = 0;
@@ -219,35 +223,32 @@ void SensorUtils::measurePressure()
 			pressure += SensorGasv20.readValue(SENS_PRESSURE);
 		}
 		pressure /= NUM_MEASUREMENTS;
-		
-			#ifdef SENS_DEBUG
-				previous = millis();
-				for (int i=0;i<NUM_MEASUREMENTS;i++)
-				{
-					pressure = SensorGasv20.readValue(SENS_PRESSURE);
-					USB.println(pressure);
-					delay(100);
-				}	
-				previous = millis() - previous;
-				USB.print("timeWithDelay "); USB.println(previous);
-			
-				USB.println("no delay between measurements:");
-				previous = millis();
-				for (int i=0;i<NUM_MEASUREMENTS;i++)
-				{
-					pressure = SensorGasv20.readValue(SENS_PRESSURE);
-					USB.println(pressure);
-				}	
-				previous = millis() - previous;
-				USB.print("timeNoDelay "); USB.println(previous);				
+			#ifdef SENS_DEBUG_V2
+				USB.print( pressure );
 			#endif	
+					#ifdef SENS_DEBUG
+						previous = millis();
+						for (int i=0;i<NUM_MEASUREMENTS;i++)
+						{
+							pressure = SensorGasv20.readValue(SENS_PRESSURE);
+							USB.println(pressure);
+							delay(100);
+						}	
+						previous = millis() - previous;
+						USB.print("timeWithDelay "); USB.println(previous);
+					
+						USB.println("no delay between measurements:");
+						previous = millis();
+						for (int i=0;i<NUM_MEASUREMENTS;i++)
+						{
+							pressure = SensorGasv20.readValue(SENS_PRESSURE);
+							USB.println(pressure);
+						}	
+						previous = millis() - previous;
+						USB.print("timeNoDelay "); USB.println(previous);				
+					#endif	
 		
 		SensorGasv20.setSensorMode(SENS_OFF, SENS_PRESSURE);
-			
-		#ifdef SENS_DEBUG
-			previous = millis() - previous;
-			USB.print("SensorUtils::measurePressure() took  ms"); USB.println(previous);
-		#endif
 	
 	#else   /// WEATHER STATION
 		
@@ -261,6 +262,9 @@ void SensorUtils::measurePressure()
 		}
 		SensorAgrV20.setSensorMode(SENS_OFF, SENS_AGR_PRESSURE);
 		pressure /= NUM_MEASUREMENTS;	
+			#ifdef SENS_DEBUG_V2
+				USB.print( pressure );
+			#endif	
 	
 	#endif
 }
@@ -269,7 +273,7 @@ void SensorUtils::measurePressure()
 void SensorUtils::measureBattery()
 {
 		#ifdef SENS_DEBUG_V2
-			USB.println("measureBattery");
+			USB.print(" B=");
 		#endif
 	
 	battery = 0;
@@ -280,74 +284,60 @@ void SensorUtils::measureBattery()
 	}
 	
 	battery /= NUM_MEASUREMENTS;
-	
-		#ifdef SENS_DEBUG
-			previous = millis();
-			for (int i=0;i<NUM_MEASUREMENTS;i++)
-			{
-				battery = PWR.getBatteryLevel();
-				USB.println( (int) battery);
-				delay(100);
-			}
-			previous = millis() - previous;
-			USB.print("timeWithDelay "); USB.println(previous);			
-		
-			USB.println("no delay between measurements:");
-			previous = millis();
-			for (int i=0;i<NUM_MEASUREMENTS;i++)
-			{
-				battery = PWR.getBatteryLevel();
-				USB.println( (int) battery);
-			}	
-			previous = millis() - previous;
-			USB.print("timeNoDelay "); USB.println(previous);				
-		#endif		
-		
-		#ifdef SENS_DEBUG
-			previous = millis() - previous;
-			USB.print("SensorUtils::measureBattery() took  ms"); USB.println(previous);
-		#endif
+		#ifdef SENS_DEBUG_V2
+				USB.print( battery );
+		#endif	
 }
 
 
 void SensorUtils::measureCO2()
 {
-	/// Cannot be measured on Agriculture board
-	#ifndef WEATHER_STATION
+	uint8_t er = 0;
+	
+	#ifndef WEATHER_STATION /// Cannot be measured on Agriculture board
 	uint16_t time = 0;
 		#ifdef SENS_DEBUG_V2
-			USB.println("measureCO2");
+			USB.print(" CO2=(30 sec) ");
 		#endif
+		
 	co2 = 0;
 	long previous = 0;
-	USB.println("Measuring CO2: 30 sec");
-	
+		
 	SensorGasv20.configureSensor(SENS_CO2, 1);
     SensorGasv20.setSensorMode(SENS_ON, SENS_CO2);
 	  
 	previous = millis();
 	time = millis() - previous;
+	
+	//xbeeZB.setAlarmForRouter();
+		
 	while (time < 30000)
 	{
 		time = millis() - previous;
 		/*
-		if(xbeeZB.defaultOperation && xbeeZB.defaultTime2WakeInt <= time/1000)
+		if( intFlag & RTC_INT )
 		{
-			measureSensors(xbeeZB.activeSensorMask)
-			if(sleepMode == HIBERNATE)
-				RTCUt.setNextTimeWhenToWakeUpViaOffset(defaultTime2WakeInt);
-			else if(sleepMode == DEEPSLEEP)
-			{
-				xbeeZB.findNextTime2Wake(DEEPSLEEP);
-				xbeeZB.updatePosInArray();				
-			}
-			// sendMeasuredSensors() 
-		}
-		else if( (xbeeZB.time2wValuesArray[xbeeZB.posInArray+1] - xbeeZB.time2wValuesArray[xbeeZB.posInArray]) <= time/1000)
-		{
-			
-		}
-		*/
+			intFlag &= ~(RTC_INT); // Clear flag
+				#ifdef FINAL_USB_DEBUG
+					USB.println("\nCO2 INTERRUPTED");
+				#endif
+			er = measureSensors(xbeeZB.activeSensorMask);
+				#ifdef FINAL_USB_DEBUG
+					USB.print("\n ... RETURNED: "); USB.print(er);
+				#endif
+			er = COMM.checkNodeAssociation(LOOP);
+				#ifdef FINAL_USB_DEBUG
+					USB.print("\n ... RETURNED: "); USB.print(er);
+				#endif
+			if(er != 0) 
+				COMM.retryJoining();
+			else
+				PackUtils.sendMeasuredSensors(xbeeZB.GATEWAY_MAC, xbeeZB.activeSensorMask);
+				
+			xbeeZB.setAlarmForRouter();
+		}	
+		*/		
+		
 	
 		// dummy readings in order to warm the sensor
 		SensorGasv20.readValue(SENS_CO2);    
@@ -363,7 +353,10 @@ void SensorUtils::measureCO2()
 	SensorGasv20.setSensorMode(SENS_OFF, SENS_CO2);
 	co2 /= NUM_MEASUREMENTS;
 	co2 *= 1000;
-
+	
+		#ifdef SENS_DEBUG_V2
+				USB.print( co2 );
+		#endif	
 	#endif
 }
 
@@ -372,7 +365,7 @@ void SensorUtils::measureCO2()
 	void SensorUtils::measureAnemo()
 	{
 			#ifdef SENS_DEBUG_V2
-				USB.println("measureAnemo");
+				USB.print(" ANEMO=");
 			#endif
 		
 		anemo = 0;
@@ -381,17 +374,13 @@ void SensorUtils::measureCO2()
 		SensorAgrV20.setSensorMode(SENS_ON, SENS_AGR_ANEMOMETER);
 		delay(100);
 		
-		//for (int i=0;i<NUM_MEASUREMENTS;i++)
-		//{
-			/* ANEMOMETER   RANGE: 0 -> 240 km/h */
-			anemo = SensorAgrV20.readValue(SENS_AGR_ANEMOMETER);
-		//}
+		/* ANEMOMETER   RANGE: 0 -> 240 km/h */
+		anemo = SensorAgrV20.readValue(SENS_AGR_ANEMOMETER);
 		
 		SensorAgrV20.setSensorMode(SENS_OFF, SENS_AGR_ANEMOMETER);
-		//anemo /= NUM_MEASUREMENTS;
 		
 			#ifdef SENS_DEBUG_V2
-				USB.println("  measureAnemoFinished");
+				USB.print( anemo );
 			#endif		
 	}
 
@@ -399,7 +388,7 @@ void SensorUtils::measureCO2()
 	void SensorUtils::measureVane()
 	{
 			#ifdef SENS_DEBUG_V2
-				USB.println("measureVane");
+				USB.print(" VANE=");
 			#endif
 		
 		vane = 0;
@@ -441,42 +430,49 @@ void SensorUtils::measureCO2()
 	{
 		pluviometerCounter == 65535 ? pluviometerCounter == 65535 : pluviometerCounter++;
 		RTCUt.getTime();
-		
+		/*
 		if(startedRaining)
 		{
 			startedRaining = false;
 			startedRainingTime = RTCUt.RTCSecMinHourInt;
+			COMM.sendWarning( (Errors) STARTED_RAINING);
 		}
 		else
 		{
-			if(RTCUt.RTCSecMinHourInt - startedRainingTime >= 360)
-			startedRaining = false;
+			if(RTCUt.RTCSecMinHourInt - startedRainingTime >= 720)
+			{
+				startedRaining = false;
+				pluviometerCounter = 0;
+				//COMM.sendWarning(RAIN_METER_HAS_BEEN_RESET);
+			}
 		}
+		*/
 	}
 	
 	
 	void SensorUtils::getSummativeRainfall()
 	{
 			#ifdef SENS_DEBUG_V2
-				USB.println("measurePluvio (summative)");
+				USB.print(" PLUVIO=(sum_counter)");
 			#endif	
-		summativeRainfallInMM = float (pluviometerCounter) * 0.2794;  
+		//summativeRainfallInMM = float (pluviometerCounter) * 0.2794; 
 			#ifdef SENS_DEBUG_V2
-				USB.println("measurePluvio (summative) finished");
-			#endif			
+				USB.print( (int) pluviometerCounter);
+			#endif	
 	}
 	
 	
 	void SensorUtils::resetPluviometer()
 	{
 		pluviometerCounter = 0;
+		COMM.sendWarning(RAIN_METER_HAS_BEEN_RESET);
 	}
 	
 	
 	void SensorUtils::measureLuminosity()
 	{
 			#ifdef SENS_DEBUG_V2
-				USB.println("measureLuminosity");
+				USB.print(" LUM=");
 			#endif
 		luminosity = 0;
 		// Turn on the sensor and wait for stabilization and response time
@@ -485,17 +481,21 @@ void SensorUtils::measureCO2()
 		
 		for (int i=0;i<NUM_MEASUREMENTS;i++)
 		{
-			/* ANEMOMETER   RANGE: 0 -> 240 km/h */
+			/*LUMINOSITY: RANGE: 0 -> 3.3 OHM */
 			luminosity += SensorAgrV20.readValue(SENS_AGR_LDR);
 		}
 		SensorAgrV20.setSensorMode(SENS_OFF, SENS_AGR_LDR);
 		luminosity /= NUM_MEASUREMENTS;		
+		
+			#ifdef SENS_DEBUG_V2
+				USB.print(luminosity);
+			#endif	
 	}	
 	
 	void SensorUtils::measureSolarRadiation()
 	{
 			#ifdef SENS_DEBUG_V2
-				USB.println("measureRadiation");
+				USB.println(" RAD=");
 			#endif	
 		solar_radiation = 0;
 		
@@ -504,7 +504,7 @@ void SensorUtils::measureCO2()
 		
 		for (int i=0;i<NUM_MEASUREMENTS;i++)
 		{
-			/* ANEMOMETER   RANGE: 0 -> 240 km/h */
+			/* */
 			solar_radiation += SensorAgrV20.readValue(SENS_AGR_RADIATION);
 		}
 		SensorAgrV20.setSensorMode(SENS_OFF, SENS_AGR_RADIATION);
@@ -512,6 +512,9 @@ void SensorUtils::measureCO2()
 		
 		// Conversion from voltage into umol·m-2·s-1
         solar_radiation /= 0.00015;		
+			#ifdef SENS_DEBUG_V2
+				USB.print(solar_radiation);
+			#endif	
 	}
 	
 	
@@ -519,52 +522,52 @@ void SensorUtils::measureCO2()
 	{
 		  switch(SensorAgrV20.vane_direction)
 		  {
-			case  SENS_AGR_VANE_N   :  USB.println("N");
+			case  SENS_AGR_VANE_N   :  USB.print("N");
 									   vaneDirection = VANE_N;
 									   break;
-			case  SENS_AGR_VANE_NNE :  USB.println("NNE");
+			case  SENS_AGR_VANE_NNE :  USB.print("NNE");
 									   vaneDirection = VANE_NNE;
 									   break;
-			case  SENS_AGR_VANE_NE  :  USB.println("NE");
+			case  SENS_AGR_VANE_NE  :  USB.print("NE");
 									   vaneDirection = VANE_NE;			
 									   break;
-			case  SENS_AGR_VANE_ENE :  USB.println("ENE");
+			case  SENS_AGR_VANE_ENE :  USB.print("ENE");
 									   vaneDirection = VANE_ENE;
 									   break;
-			case  SENS_AGR_VANE_E   :  USB.println("E");
+			case  SENS_AGR_VANE_E   :  USB.print("E");
 									   vaneDirection = VANE_E;
 									   break;
-			case  SENS_AGR_VANE_ESE :  USB.println("ESE");
+			case  SENS_AGR_VANE_ESE :  USB.print("ESE");
 									   vaneDirection = VANE_ESE;
 									   break;
-			case  SENS_AGR_VANE_SE  :  USB.println("SE");
+			case  SENS_AGR_VANE_SE  :  USB.print("SE");
 									   vaneDirection = VANE_SE;
 									   break;
-			case  SENS_AGR_VANE_SSE :  USB.println("SSE");
+			case  SENS_AGR_VANE_SSE :  USB.print("SSE");
 									   vaneDirection = VANE_SSE;
 									   break;
-			case  SENS_AGR_VANE_S   :  USB.println("S");
+			case  SENS_AGR_VANE_S   :  USB.print("S");
 									   vaneDirection = VANE_S;
 									   break;
-			case  SENS_AGR_VANE_SSW :  USB.println("SSW");
+			case  SENS_AGR_VANE_SSW :  USB.print("SSW");
 									   vaneDirection = VANE_SSW;
 									   break;
-			case  SENS_AGR_VANE_SW  :  USB.println("SW");
+			case  SENS_AGR_VANE_SW  :  USB.print("SW");
 									   vaneDirection = VANE_SW;
 									   break;
-			case  SENS_AGR_VANE_WSW :  USB.println("WSW");
+			case  SENS_AGR_VANE_WSW :  USB.print("WSW");
 									   vaneDirection = VANE_WSW;
 									   break;
-			case  SENS_AGR_VANE_W   :  USB.println("W");
+			case  SENS_AGR_VANE_W   :  USB.print("W");
 									   vaneDirection = VANE_W;
 									   break;
-			case  SENS_AGR_VANE_WNW :  USB.println("WNW");
+			case  SENS_AGR_VANE_WNW :  USB.print("WNW");
 									   vaneDirection = VANE_WNW;
 									   break;
-			case  SENS_AGR_VANE_NW  :  USB.println("WN");
+			case  SENS_AGR_VANE_NW  :  USB.print("WN");
 									   vaneDirection = VANE_NW;
 									   break;
-			case  SENS_AGR_VANE_NNW :  USB.println("NNW");
+			case  SENS_AGR_VANE_NNW :  USB.print("NNW");
 									   vaneDirection = VANE_NNW;
 									   break;
 		  }      	
@@ -589,43 +592,35 @@ uint8_t SensorUtils::measureSensors(int count, ...)
 
 uint8_t SensorUtils::measureSensors(uint16_t mask)
 {
-
 	uint8_t error = 2;
 	uint16_t indicator = 1;
 	
-	#ifndef WEATHER_STATION 
+		#ifdef FINAL_USB_DEBUG
+			USB.print("\nMEASURING_SENSORS: ");
+		#endif
+		
+		#ifdef SENS_DEBUG_V2
+			USB.print("for mask "); USB.print( (int) mask );
+			USB.print(" mask length "); USB.println( (int) xbeeZB.activeSensorMaskLength);
+		#endif
+	
+	#ifndef WEATHER_STATION  /// INDOOR NODES - GASSES SENSOR BOARD /////////////////////////////////
 
 	if( mask == 0 )
 	{
-		error = 1;
-		#ifdef SENS_DEBUG
-			USB.println("*mask = 0 in uint8_t SensorUtils::measureSensors(uint16_t mask)");
-		#endif
+		COMM.sendError(NODE_HAD_AN_ERROR_IN_MEASURE_SENSORS_RECEIVED_AN_EMPTY_MASK);
+		return 1;
 	}
 	else if ( mask == BATTERY )
 	{
 		(this->*reader[3])();  	/// measure only battery,  don't turn on sensor board
 		error = 0;				/// no time check since this is the only reason we came awake
-		#ifdef SENS_DEBUG
-			USB.println("*mask = BATTERY in uint8_t SensorUtils::measureSensors(uint16_t * mask)");
-		#endif
 	}
 	else
 	{
-		#ifdef SENS_DEBUG
-			USB.print("In SensorUtils::measureSensors(uint16_t mask): mask = ");
-			USB.println( (int) mask );
-			USB.println("Turning on sensorBoard in uint8_t SensorUtils::measureSensors(uint16_t mask)");
-		#endif
-		
-		//SensorGasv20.ON();		/// GASSES NIGGERS
+		error = 0;
 		SensorGasv20.setBoardMode(SENS_ON);
-		//RTC.ON();
-		
-		//Stabilization delay after turning on sensor board
-		//delay(100);
-		//SensUtils.measureTemperature();
-	
+			
 		for(uint8_t i = 0; i < xbeeZB.activeSensorMaskLength; i++)
 		{
 			if(xbeeZB.defaultOperation)
@@ -638,55 +633,45 @@ uint8_t SensorUtils::measureSensors(uint16_t mask)
 			}
 			else
 			{
-				if(xbeeZB.sleepMode == SLEEP || xbeeZB.sleepMode == DEEPSLEEP)
+				if(xbeeZB.sleepMode == SLEEP || xbeeZB.sleepMode == DEEPSLEEP || 
+				   xbeeZB.sleepMode == NONE)
 				{			
 					/// Use posInArray
-					if(indicator & mask && RTCUt.RTCSecMinHourInt % xbeeZB.time2wValuesArray[xbeeZB.posInArray-1] == 0 )
+					//USB.print("time: "); USB.println( (int) RTCUt.RTCSecMinHourInt );
+					//USB.print("sensInt[i] "); USB.println( (int) measuringInterval[i] );
+					if(indicator & mask && RTCUt.RTCSecMinHourInt % measuringInterval[i] == 0)
 					{
 						(this->*reader[i])();  // read the corresponding sensor
 					}
 				}
 				else /// IF HIBERNATE:
 				{
-					if(indicator & mask && RTCUt.RTCSecMinHourInt % xbeeZB.storedTime == 0 )
+					if(indicator & mask && RTCUt.RTCSecMinHourInt % measuringInterval[i] == 0 )
 					{
 						(this->*reader[i])();  // read the corresponding sensor
 					}
-				
 				}
 				indicator <<= 1;
 			}
 		}
 		SensorGasv20.OFF();
-		
-		error = 0;
 	}
 	
-	#else   ///  WEATHER_STATION
+	#else   ///  WEATHER_STATION - AGRICULTURE SENSOR BOARD /////////////////////////////////////////
 	
 	if( mask == 0 )
 	{
-		error = 1;
-		#ifdef SENS_DEBUG
-			USB.println("*mask = 0 in uint8_t SensorUtils::measureSensors(uint16_t mask)");
-		#endif
+		COMM.sendError(NODE_HAD_AN_ERROR_IN_MEASURE_SENSORS_RECEIVED_AN_EMPTY_MASK);
+		return 1;
 	}
 	else if ( mask == BATTERY )
 	{
 		(this->*reader[3])();  	/// measure only battery,  don't turn on sensor board
 		error = 0;				/// no time check since this is the only reason we came awake
-		#ifdef SENS_DEBUG
-			USB.println("*mask = BATTERY in uint8_t SensorUtils::measureSensors(uint16_t * mask)");
-		#endif
 	}
 	else
 	{
-		#ifdef SENS_DEBUG
-			USB.print("In SensorUtils::measureSensors(uint16_t mask): mask = ");
-			USB.println( (int) mask );
-			USB.println("Turning on sensorBoard in uint8_t SensorUtils::measureSensors(uint16_t mask)");
-		#endif
-		
+		error = 0;
 		SensorAgrV20.setBoardMode(SENS_ON);
 		RTC.ON();
 		
@@ -705,14 +690,14 @@ uint8_t SensorUtils::measureSensors(uint16_t mask)
 				if(xbeeZB.sleepMode == SLEEP || xbeeZB.sleepMode == DEEPSLEEP)
 				{			
 					/// Use posInArray
-					if(indicator & mask && RTCUt.RTCSecMinHourInt % xbeeZB.time2wValuesArray[xbeeZB.posInArray-1] == 0 )
+					if(indicator & mask && RTCUt.RTCSecMinHourInt % measuringInterval[i] == 0 )
 					{
 						(this->*reader[i])();  // read the corresponding sensor
 					}
 				}
 				else /// IF HIBERNATE:
 				{
-					if(indicator & mask && RTCUt.RTCSecMinHourInt % xbeeZB.storedTime == 0 )
+					if(indicator & mask && RTCUt.RTCSecMinHourInt % measuringInterval[i] == 0 )
 					{
 						(this->*reader[i])();  // read the corresponding sensor
 					}
@@ -721,9 +706,7 @@ uint8_t SensorUtils::measureSensors(uint16_t mask)
 				indicator <<= 1;
 			}
 		}
-		
-		SensorAgrV20.setBoardMode(SENS_OFF); 		
-		error = 0;
+		//SensorAgrV20.setBoardMode(SENS_OFF); 		// => disables rain interrupt
 	}	
 	#endif
 	
@@ -740,121 +723,108 @@ uint8_t SensorUtils::sensorValue2Chars(float value, SensorType type)
 	//unsigned int i = 0;
 	uint16_t i = 0;
 	
+	
 	switch(type)
 	{
 		case TEMPERATURE:	
 		{
 			// TEMPERATURE SENSOR:   RANGE: -40° -> +125° 
 			
-			USB.print("value = "); USB.println( value );
+			//USB.print("temp value = "); USB.println( value );
 			value += 40;		// negative values start at 0
 			value *= 100;		// accuracy: 2 decimals  (1 dec is ok but have 4 bits left anyway)
-			
+			/*
 			i = (unsigned int) value;
 			
 			temp[0] = i/256;		// (i & 0xFF00)>>8;
 			temp[1] = i%256;		// i & 0x00FF;
-			
-			#ifdef SENS_DEBUG_V3
-				USB.print("i = "); 			USB.println( (int) i );
-				USB.print("temp[0] = ");	USB.println( (int) temp[0] );
-				USB.print("temp[1] = ");	USB.println( (int) temp[1] );
-			#endif
-			
-			if( i == ( ((unsigned int) temp[0]*256) + temp[1] )  )
-				error = 0;
-			else
-				error = 1;
+			*/
+			temp[0] = MSByte(value);
+			temp[1] = LSByte(value);
+
+			 (unsigned int) value == ToMask(temp) ? error = 0 : error = 1;
 		}
 		break;
 		
 		case HUMIDITY:	
 		{
 			hum = (unsigned int) value;
-				
 			error = 0;
 		}
 		break;
 		
 		case PRESSURE:
 		{
-			//char str[10];
-			//USB.print("pressure = "); USB.println(value);
 			value *= 100;		// accuracy: 2 decimals
-			value -= 50000;
-			
 			i = (unsigned int) value;
-			//USB.print("i = "); USB.println(( long int ) i);
 			
-			pres[0] = i/256;
-			pres[1] = i%256;
-			
-			//USB.print("pres[0] = "); USB.println((int) pres[0]);
-			//USB.print("pres[1] = "); USB.println((int) pres[1]);
-			
-			if( i == ( ((unsigned int) pres[0]*256) + pres[1] )  )	
-				//USB.print("i == "); USB.println( (long int) ( ((unsigned int) pres[0]*256) + pres[1] ) );
-				error = 0;
-			else
-				error = 1;
-				
-			//USB.print("Error = "); USB.println((int)error);
+			pres[0] = MSByte(i);
+			pres[1] = LSByte(i);
+
+			(unsigned int) i == ToMask(pres) ? error = 0 : error = 1;
 		}
 		break;
 		
 		case BATTERY:
 		{
 			bat = (unsigned int) value;
-			
 			error = 0;
 		}
 		break;
 		
 		case CO2:
 		{
-			i = (unsigned int) value;
+			co_2[0] = MSByte(value);
+			co_2[1] = LSByte(value);
 			
-			co_2[0] = i/256;
-			co_2[1] = i%256;
-			
-			if( i == ( ((unsigned int) co_2[0]*256) + co_2[1] )  )
-				error = 0;
-			else
-				error = 1;
+			(unsigned int) value == ToMask(co_2) ? error = 0 :	error = 1;
 		}
 		break;
 		
 		case ANEMO:
 		{
 			an = (unsigned int) value;
-			
 			error = 0;		
 		}
 		
-		case VANE:
+		case VANE:  // No conversion needed, value is sent in PAQUtils::InsertVane()
+			 error = 0;
 		break;
 		
 		case PLUVIO:
 		{			
-			i = (unsigned int) value;
+			rain_count[0] = MSByte(value);
+			rain_count[1] = LSByte(value);
 			
-			sum_rain[0] = i/256;
-			sum_rain[1] = i%256;
+			(unsigned int) value == ToMask(rain_count) ? error = 0 : error = 1;		
+		}
+		break;
+		
+		case LUMINOSITY:
+		{
+			value *= 100;
+			value /= MAX_LUMINOSITY; // To a percentage
 			
-				if( i == ( ((unsigned int) sum_rain[0]*256) + sum_rain[1] )  )
-				error = 0;
-			else
-				error = 1;		
+			lum = (unsigned int) value;
+			error = 0;
+		}
+		break;
+		
+		case SOLAR_RADIATION:
+		{
+			i = ( unsigned int ) value;
+			radiation[0] = MSByte(i);
+			radiation[1] = LSByte(i);
+			error = 0;
 		}
 		break;
 						
 		default:
 		{
 			error = 1;
-			USB.println("Went into default");
+			COMM.sendError(NODE_HAD_AN_ERROR_IN_SENSOR_VALUE_2_CHARS);
 		}
-			break;
-			
+		break;	
 	}	
 	
 	return error;
@@ -922,8 +892,21 @@ uint8_t SensorUtils::registerSensorMeasuringIntervalTime(SensorType type, uint16
 			error = 0;
 		}		
 			break;
+		case LUMINOSITY:
+		{
+			measuringInterval[8] = time;
+			error = 0;
+		}
+			break;
+		case SOLAR_RADIATION:
+		{
+			measuringInterval[9] = time;
+			error = 0;		
+		}
+			break;
 		default:
 			error = 1;
+			COMM.sendError(NODE_HAD_AN_ERROR_IN_REGISTER_SENSOR_MEASURING_INTERVAL_TIME);
 			break;
 	}
 	
@@ -982,71 +965,148 @@ void SensorUtils::readSensorMeasuringIntervalTimesFromEEPROM()
 }
 
 
+
 /*********************************************************************************************************
-  *
-  * SAVE SENSOR VALUES IN CASE OF POWER SAVER MODE
-  *
-  *******************************************************************************************************/
-uint8_t SensorUtils::measureAndstoreSensorValues(uint16_t mask)
-{
-
-	uint8_t error = 2;
-	uint16_t indicator = 1;
-	uint16_t toMeasureMask = 0;
-		#ifdef POWER_SAVER_DEBUG
-			USB.println("storing values");
-		#endif
-	error = measureSensors(mask);
-	if( error ) return error;
-	
-	for(uint8_t i=0; i<NUM_SENSORS; i++)
-	{
-		if(indicator & mask)
-		{
-			toMeasureMask += (*Saver[i])();
-			error = 0;
-		}
-		indicator <<= 1;
-	}
-	
-	if( toMeasureMask > 0 )
-	{
-		//This bool should be read when waking up
-		xbeeZB.storeValue(MUST_SEND_SAVED_SENSOR_VALUES, true);
-		xbeeZB.storeValue(MUST_SEND_SAVED_SENSOR_VALUES_MASK_H ,toMeasureMask/256);
-		xbeeZB.storeValue(MUST_SEND_SAVED_SENSOR_VALUES_MASK_L ,toMeasureMask%256);
-	}
-	
-	return error;
-}
-
+ * SAVE SENSOR VALUES IN CASE OF POWER SAVER MODE OR PARENT UNREACHABLE
+ ********************************************************************************************************/
 void SensorUtils::storeMeasuredSensorValues(uint16_t mask)
 {
+#ifdef POWER_MODES	
 	uint16_t indicator = 1;
-	uint16_t storedSensorsMask = 0;
+	uint16_t areFullMask = 0;
 
-	for(uint8_t i=0; i<NUM_SENSORS; i++)
-	{
-		if(indicator & mask)
-		{
-			storedSensorsMask += (*Saver[i])();
-		}
-		indicator <<= 1;
-	}	
 	
-	xbeeZB.storeValue(MUST_SEND_SAVED_SENSOR_VALUES, true);
+	if(xbeeZB.sleepMode == HIBERNATE)
+	{
+		for(uint8_t i=0; i<NUM_SENSORS_TO_SAVE; i++)
+		{
+			if(indicator & mask)
+			{
+				areFullMask += (*Saver[i])();
+			}
+			indicator <<= 1;
+		}	
+	}
+	else
+	{
+		for(uint8_t i=0; i<NUM_SENSORS; i++)
+		{
+			if(indicator & mask)
+			{
+				areFullMask += keepSensorValueInMemory(indicator);
+			}
+		}
+	}
+	
+	if(areFullMask > 0)
+	{
+		forceHighPerformance = true;
+		xbeeZB.mustSendSavedSensorValues = false;
+	}
+#endif		
 }
 
-/*********************************************************************************************************
- *	STATIC FUNCTION POINTERS TO SAVE SENSOR DATA:
- ********************************************************************************************************/
+uint16_t SensorUtils::keepSensorValueInMemory(uint16_t mask)
+{		
+	uint16_t full = 0;
+#ifdef POWER_MODES	
+	switch(mask)
+	{	
+		case TEMPERATURE:	
+		{
+			sensorValue2Chars(SensUtils.temperature, TEMPERATURE);
+			savedValues[0][savedPositions[0]++] = temp[0];
+			savedValues[0][savedPositions[0]++] = temp[1];
+			savedPositions[0] == 2 * MAX_NR_OF_SENSOR_SAVINGS ? full = 1 : full = 0;
+		}
+			break;
+		case HUMIDITY:	
+		{
+			sensorValue2Chars(SensUtils.humidity, HUMIDITY);
+			savedValues[1][savedPositions[1]++] = hum;
+			savedPositions[1] == 2 * MAX_NR_OF_SENSOR_SAVINGS ? full = 1 : full = 0;
+		}
+			break;		
+		case PRESSURE:	
+		{
+			sensorValue2Chars(SensUtils.pressure, PRESSURE);
+			savedValues[2][savedPositions[2]++] = pres[0];
+			savedValues[2][savedPositions[2]++] = pres[1];
+			savedPositions[2] == 2 * MAX_NR_OF_SENSOR_SAVINGS ? full = 1 : full = 0;
+		}		
+			break;
+		case BATTERY:	
+		{
+			sensorValue2Chars(SensUtils.battery, BATTERY);
+			savedValues[3][savedPositions[3]++] = bat;
+			savedPositions[3] == 2 * MAX_NR_OF_SENSOR_SAVINGS ? full = 1 : full = 0;
+		}	
+			break;		
+		case CO2:	
+		{
+			sensorValue2Chars(SensUtils.co2, CO2);
+			savedValues[4][savedPositions[4]++] = co_2[0];
+			savedValues[4][savedPositions[4]++] = co_2[1];
+			savedPositions[4] == 2 * MAX_NR_OF_SENSOR_SAVINGS ? full = 1 : full = 0;
+		}		
+			break;
+		case ANEMO:	
+		{
+			sensorValue2Chars(SensUtils.anemo, ANEMO);	
+			savedValues[5][savedPositions[5]++] = an;
+			savedPositions[5] == 2 * MAX_NR_OF_SENSOR_SAVINGS ? full = 1 : full = 0;
+		}		
+			break;
+		case VANE:	
+		{
+			savedValues[6][savedPositions[6]++] = (int) vaneDirection;
+			savedPositions[6] == 2 * MAX_NR_OF_SENSOR_SAVINGS ? full = 1 : full = 0;
+		}
+			break;
+		case PLUVIO:	
+		{
+			sensorValue2Chars(SensUtils.pluviometerCounter, PLUVIO);
+			savedValues[7][savedPositions[7]++] = rain_count[0];
+			savedValues[7][savedPositions[7]++] = rain_count[1];
+			savedPositions[7] == 2 * MAX_NR_OF_SENSOR_SAVINGS ? full = 1 : full = 0;
+		}		
+			break;
+		case LUMINOSITY:
+		{
+			sensorValue2Chars(SensUtils.luminosity, LUMINOSITY);
+			savedValues[8][savedPositions[8]++] = lum;
+			savedPositions[8] == 2 * MAX_NR_OF_SENSOR_SAVINGS ? full = 1 : full = 0;
+		}
+			break;
+		case SOLAR_RADIATION:
+		{
+			sensorValue2Chars(SensUtils.solar_radiation, SOLAR_RADIATION);
+			savedValues[9][savedPositions[9]++] = radiation[0];
+			savedValues[9][savedPositions[9]++] = radiation[1];			
+			savedPositions[9] == 2 * MAX_NR_OF_SENSOR_SAVINGS ? full = 1 : full = 0;	
+		}
+			break;
+		default:
+			COMM.sendError(NODE_HAD_AN_ERROR_IN_KEEP_SENSOR_VALUES_IN_MEMORY);
+			break;
+	}
+#endif	
+	return full;
+	
+}
+
+
+	/***********************************************************
+	 *	STATIC FUNCTION POINTERS TO SAVE SENSOR DATA IN EEPROM:
+	 **********************************************************/
 	uint16_t saveTemperature()
 	{
-	
-		uint16_t error = 2;
-		uint16_t eeprom_pos = FIRST_TEMPERATURE_VALUE + Utils.readEEPROM(NR_OF_SAVED_TEMPERATURE_VALUES);
-		uint8_t maxAllowed = Utils.readEEPROM(MAX_NR_OF_TEMPERATURE_SAVINGS);
-		//uint8_t nrPresentValues = Utils.readEEPROM(NR_OF_SAVED_TEMPERATURE_VALUES) avoid eeprom writes
+		uint8_t nrSaved = Utils.readEEPROM(NR_OF_SAVED_TEMPERATURE_VALUES);
+		
+		if(nrSaved == MAX_NR_OF_SENSOR_SAVINGS)
+			return TEMPERATURE;
+			
+		uint16_t eeprom_pos = FIRST_TEMPERATURE_VALUE + nrSaved;
 		
 		SensUtils.sensorValue2Chars(SensUtils.temperature, TEMPERATURE);
 		
@@ -1056,20 +1116,19 @@ void SensorUtils::storeMeasuredSensorValues(uint16_t mask)
 		
 		xbeeZB.storeValue(eeprom_pos++, SensUtils.temp[0]);
 		xbeeZB.storeValue(eeprom_pos++, SensUtils.temp[1]);
-		//storeValue(nrPresentValues + 1, NR_OF_SAVED_TEMPERATURE_VALUES);
-		
-		if(eeprom_pos == LAST_TEMPERATURE_VALUE || eeprom_pos == MAX_NR_OF_TEMPERATURE_SAVINGS)
-			return error = TEMPERATURE;
-		else 
-			return error = 0;
-	
+		xbeeZB.storeValue(NR_OF_SAVED_TEMPERATURE_VALUES, nrSaved+1);
+
+		return 0;
 	}
 
 	uint16_t saveHumidity()
 	{
-		uint16_t error = 2;
-		uint16_t eeprom_pos = FIRST_HUMIDITY_VALUE + Utils.readEEPROM(NR_OF_SAVED_HUMIDITY_VALUES);
-		uint8_t maxAllowed = Utils.readEEPROM(MAX_NR_OF_HUMIDITY_SAVINGS);
+		uint8_t nrSaved = Utils.readEEPROM(NR_OF_SAVED_HUMIDITY_VALUES);
+		
+		if(nrSaved == MAX_NR_OF_SENSOR_SAVINGS)
+			return HUMIDITY;
+			
+		uint16_t eeprom_pos = FIRST_HUMIDITY_VALUE + nrSaved;
 		
 		SensUtils.sensorValue2Chars(SensUtils.humidity, HUMIDITY);
 		
@@ -1078,19 +1137,20 @@ void SensorUtils::storeMeasuredSensorValues(uint16_t mask)
 			#endif
 			
 		xbeeZB.storeValue(eeprom_pos++, SensUtils.hum);
+		xbeeZB.storeValue(NR_OF_SAVED_HUMIDITY_VALUES, nrSaved+1);
 		
-		if(eeprom_pos == LAST_HUMIDITY_VALUE || eeprom_pos == MAX_NR_OF_HUMIDITY_SAVINGS)
-			return error = HUMIDITY;
-		else 
-			return error = 0;
+		return 0;
 	}
 	
 	uint16_t savePressure()
 	{
-		uint16_t error = 2;
-		uint16_t eeprom_pos = FIRST_PRESSURE_VALUE + Utils.readEEPROM(NR_OF_SAVED_PRESSURE_VALUES);
-		uint8_t maxAllowed = Utils.readEEPROM(MAX_NR_OF_PRESSURE_SAVINGS);
+		uint8_t nrSaved = Utils.readEEPROM(NR_OF_SAVED_PRESSURE_VALUES);
 		
+		if(nrSaved == MAX_NR_OF_SENSOR_SAVINGS)
+			return PRESSURE;
+					
+		uint16_t eeprom_pos = FIRST_PRESSURE_VALUE + nrSaved;
+
 		SensUtils.sensorValue2Chars(SensUtils.pressure, PRESSURE);
 		
 			#ifdef POWER_SAVER_DEBUG
@@ -1099,19 +1159,20 @@ void SensorUtils::storeMeasuredSensorValues(uint16_t mask)
 			
 		xbeeZB.storeValue(eeprom_pos++, SensUtils.pres[0]);
 		xbeeZB.storeValue(eeprom_pos++, SensUtils.pres[1]);
-		
-		if(eeprom_pos == LAST_PRESSURE_VALUE || eeprom_pos == MAX_NR_OF_PRESSURE_SAVINGS)
-			return error = PRESSURE;
-		else 
-			return error = 0;
+		xbeeZB.storeValue(NR_OF_SAVED_PRESSURE_VALUES, nrSaved+1);
+		 
+		return 0;
 	}
 	
 	uint16_t saveBattery()
 	{
-		uint16_t error = 2;
-		uint16_t eeprom_pos = FIRST_BATTERY_VALUE + Utils.readEEPROM(NR_OF_SAVED_BATTERY_VALUES);
-		uint8_t maxAllowed = Utils.readEEPROM(MAX_NR_OF_BATTERY_SAVINGS);	
-
+		uint8_t nrSaved = Utils.readEEPROM(NR_OF_SAVED_BATTERY_VALUES);
+		
+		if(nrSaved == MAX_NR_OF_SENSOR_SAVINGS)
+			return BATTERY;		
+		
+		uint16_t eeprom_pos = FIRST_BATTERY_VALUE + nrSaved;
+	
 		SensUtils.sensorValue2Chars(SensUtils.battery, BATTERY);
 
 			#ifdef POWER_SAVER_DEBUG
@@ -1119,18 +1180,19 @@ void SensorUtils::storeMeasuredSensorValues(uint16_t mask)
 			#endif
 		
 		xbeeZB.storeValue(eeprom_pos++, SensUtils.bat);
+		xbeeZB.storeValue(NR_OF_SAVED_BATTERY_VALUES, nrSaved+1);
 		
-		if(eeprom_pos == LAST_BATTERY_VALUE || eeprom_pos == MAX_NR_OF_BATTERY_SAVINGS)
-			return error = BATTERY;
-		else 
-			return error = 0;		
+		return 0;		
 	}
 	
 	uint16_t saveCO2()
 	{
-		uint16_t error = 2;
-		uint16_t eeprom_pos = FIRST_CO2_VALUE + Utils.readEEPROM(NR_OF_SAVED_CO2_VALUES);
-		uint8_t maxAllowed = Utils.readEEPROM(MAX_NR_OF_CO2_SAVINGS);
+		uint8_t nrSaved = Utils.readEEPROM(NR_OF_SAVED_CO2_VALUES);
+		
+		if(nrSaved == MAX_NR_OF_SENSOR_SAVINGS)
+			return CO2;
+			
+		uint16_t eeprom_pos = FIRST_CO2_VALUE + nrSaved;
 		
 		SensUtils.sensorValue2Chars(SensUtils.co2, CO2);
 		
@@ -1140,11 +1202,75 @@ void SensorUtils::storeMeasuredSensorValues(uint16_t mask)
 		
 		xbeeZB.storeValue(eeprom_pos++, SensUtils.co_2[0]);
 		xbeeZB.storeValue(eeprom_pos++, SensUtils.co_2[1]);
+		xbeeZB.storeValue(NR_OF_SAVED_CO2_VALUES, nrSaved+1);
 		
-		if(eeprom_pos == LAST_CO2_VALUE || eeprom_pos == MAX_NR_OF_CO2_SAVINGS)
-			return error = CO2;
-		else 
-			return error = 0;	
+		return 0;	
 	}
+
+/*********************************************************************************************************
+ * READ SENSOR VALUES FROM EEPROM IN CASE OF POWER SAVER MODE
+ ********************************************************************************************************/	
+#ifdef POWER_MODES
+void SensorUtils::copyEEPROMValuesToMemory()
+{
+	for(uint8_t i=0; i<NUM_SENSORS_TO_SAVE; i++)
+	{
+		(*EEPROM_Reader[i])();
+	}	
+} 
+
+	/***********************************************************
+	 *	STATIC FUNCTION POINTERS TO READ SENSOR DATA IN EEPROM:
+	 **********************************************************/
+	extern void readTemperatureFromEEPROM()
+	{
+		uint8_t nrSaved = Utils.readEEPROM(NR_OF_SAVED_TEMPERATURE_VALUES);
+		
+		for(uint8_t i=0; i<nrSaved; i++)
+			SensUtils.savedValues[0][SensUtils.savedPositions[0]++] = Utils.readEEPROM(FIRST_TEMPERATURE_VALUE + i);
+		
+		xbeeZB.storeValue(NR_OF_SAVED_TEMPERATURE_VALUES, 0);
+	}
+	
+	extern void readHumidityFromEEPROM()
+	{
+		uint8_t nrSaved = Utils.readEEPROM(NR_OF_SAVED_HUMIDITY_VALUES);
+
+		for(uint8_t i=0; i<nrSaved; i++)
+			SensUtils.savedValues[1][SensUtils.savedPositions[1]++] = Utils.readEEPROM(FIRST_HUMIDITY_VALUE + i);
+		
+		xbeeZB.storeValue(NR_OF_SAVED_HUMIDITY_VALUES, 0);		
+	}
+	
+	extern void readPressureFromEEPROM()
+	{
+		uint8_t nrSaved = Utils.readEEPROM(NR_OF_SAVED_PRESSURE_VALUES);
+
+		for(uint8_t i=0; i<nrSaved; i++)
+			SensUtils.savedValues[2][SensUtils.savedPositions[2]++] = Utils.readEEPROM(FIRST_PRESSURE_VALUE + i);
+		
+		xbeeZB.storeValue(NR_OF_SAVED_PRESSURE_VALUES, 0);		
+	}
+	
+	extern void readBatteryFromEEPROM()
+	{
+		uint8_t nrSaved = Utils.readEEPROM(NR_OF_SAVED_BATTERY_VALUES);
+
+		for(uint8_t i=0; i<nrSaved; i++)
+			SensUtils.savedValues[3][SensUtils.savedPositions[3]++] = Utils.readEEPROM(FIRST_BATTERY_VALUE + i);
+		
+		xbeeZB.storeValue(NR_OF_SAVED_BATTERY_VALUES, 0);		
+	}
+	
+	extern void readCO2FromEEPROM()
+	{
+		uint8_t nrSaved = Utils.readEEPROM(NR_OF_SAVED_CO2_VALUES);
+
+		for(uint8_t i=0; i<nrSaved; i++)
+			SensUtils.savedValues[4][SensUtils.savedPositions[4]++] = Utils.readEEPROM(FIRST_CO2_VALUE + i);
+		
+		xbeeZB.storeValue(NR_OF_SAVED_CO2_VALUES, 0);		
+	}
+#endif	
 
 SensorUtils SensUtils = SensorUtils();

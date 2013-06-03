@@ -16,12 +16,17 @@
 
 #define xstr(s) str(s)
 #define str(s) #s
+
+//#define ToUint16(param) ( (uint16_t) ((  param[0] ) * 256 ) + (param[1]) )
+	
+#define MUST_NOT_STORE_ON_EEPROM(where, what) ( what == Utils.readEEPROM(where) )
+	
 	
 /******************************************************************************
  * Includes
  ******************************************************************************/
 #include "WaspXBeeZB.h" 
-
+#include "PAQUtils.h"
  
 /******************************************************************************
  * Definitions & Declarations
@@ -30,19 +35,21 @@
 
 #define mess "test"
 #define FreeMem "Free Memory: "
-#define NODE_DEBUG_V2
 
 
+//#define NODE_DEBUG_V2
 #define SLEEP_DEBUG
 //#define DEEPSLEEP_DEBUG
+//#define DEEPSLEEP_DEBUG_V2
 //#define HIBERNATE_DEBUG
 #define HIBERNATE_DEBUG_V2
 //#define HIBERNATE_DEBUG_V3
 #define WASPMOTE_SLEEP_MODE_DEBUG
 
 #define FINAL_DEBUG
+#define FINAL_USB_DEBUG
 
-#define MATH_DEBUG
+//#define MATH_DEBUG
 
 //#define TEST_DIFFICULT_DEBUG
 
@@ -51,7 +58,7 @@
 //#define NODE_TIME_DEBUG
 //#define POWER_SAVER_DEBUG
 
-#define ADD_NODE_REQ_DEBUG
+//#define ADD_NODE_REQ_DEBUG
 //#define MASK_REQ_DEBUG
 #define CH_SENS_FREQ_REQ_DEBUG
 
@@ -75,6 +82,9 @@ typedef enum {SLEEP, DEEPSLEEP, HIBERNATE, NONE}
 
 typedef enum {XBEE_SLEEP_ENABLED, XBEE_SLEEP_DISABLED}
 	XBeeSleepMode;
+	
+typedef enum{ENCRYPTION_DISABLED, ENCRYPTION_ENABLED}
+	EncryptionMode;
 
 /******************************************************************************
  * Class
@@ -94,12 +104,43 @@ typedef enum {XBEE_SLEEP_ENABLED, XBEE_SLEEP_DISABLED}
 class WaspXBeeZBNode : public WaspXBeeZB
 {
 	private:
-		//! Stores the length of the nodes physical sensor mask
-		void setPhysicalSensorMaskLength();
-		//! Stores the length of the nodes active sensor mask
-		void setActiveSensorMaskLength();
-		//! Reads the necessary program parameters from EEPROM after hibernate
+	
+		//! It reads the necessary program parameters from EEPROM when a hibernate interrupt
+		/*! is detected
+		 */
 		void readCoreVariablesFromEEPROM();
+		
+	
+		//! It is called by 'setPhysicalSensorMask(uint8_t *)'
+		/*! Stores the length of the nodes physical sensor mask into 'physicalSensorMaskLength'
+		 */
+		void setPhysicalSensorMaskLength();
+		
+		
+		//! Stores the length of the nodes active sensor mask. It also stores how many
+		/*! sensors of the 'activeSensorMask' are active
+		 */
+		void setActiveSensorMaskLength();
+		
+		
+		//! It returns which bit is the MSB of a given sensor mask. So it gives the
+		/*! length of a certain mask.
+		 */
+		uint8_t getMaskLength(uint16_t);
+		
+		
+		//! It returns how many sensors of a given sensor mask are active.
+		uint8_t getNrActiveSensors(uint16_t);
+		
+		
+		//! It is called by 'changeSensorFrequencies(char *)'. 
+		/*! The parameters contains the mask indicating which sensors must be disabled. 
+		 *  @post : The function will update the 'activeSensorMask' and 'activeSensorMaskLength'
+		 *        : If there are no longer sensors active with different measuring intervals 
+		 *          'defaultOperation' will be re-enabled. Otherwise 'changeSensorFrequencies(char *)'
+		 *          will calculate the necessary intervals.
+		 */
+		uint8_t disableSensors(uint16_t *);
 
 		
 	public:
@@ -110,14 +151,15 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		  \return void
 		 */
 		WaspXBeeZBNode(); 
-		
+		void printStoredErrors();
 		
 		void hibernateInterrupt();
 
 		void setAlarmForRouter();
 		
 		void setGatewayMacAddress(uint8_t[8]);
-		uint8_t retryJoining();
+		
+		
 		//void setPanID(uint8_t[8]);
 
 /*********************************************************************************************************
@@ -127,7 +169,7 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		//! It saves the device role in global 'deviceRole' 
 		/*!   0=END_DEVICE,  1=ROUTER,  2=COORDINATOR
 		 *    It is supposed the device type is correctly set via X-CTU (function set)
-		 *    However, it gives the possibility to downgrade a Router to an End Device
+		 *    However, it gives the possibility to downgrade a Router to an End Device remotely
 		 */
 		uint8_t getDeviceRole();
 		
@@ -138,9 +180,31 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		 *    0=END_DEVICE,  1=ROUTER,  2=COORDINATOR
 		 */
 		uint8_t setDeviceRole(DeviceRole);
+		
+		
+		//! It sets the node's powerplan to the received mode.
+		/*! \return 0 : executed successfully
+		 *  \return 1 : received invalid new power plan
+		 */
+		uint8_t setPowerPlan(PowerPlan);
+		
+		
+		//! This function checks if the current HIGHPERFORMANCE mode is  the actual 
+		/*! mode as set in the node or if it is the result of a request to send the saved
+		 *  sensors from POWERSAVER mode. In the latter case it will make sure the next 
+		 *  cycle will be executed again as POWERSAVER mode.
+		 */
+		void verifyPowerPlan();
+		
+		
+		//! It sets the node's encryption mode to the received mode.
+		/*! \return 0 : executed successfully
+		 *  \return 1 : received invalid new encryption mode
+		 */		
+		uint8_t setEncryptionMode(EncryptionMode);
  
  
-		//! It allows to remotely set a sensor mask to a node
+		//! It allows to REMOTELY set a sensor mask to a node
 		/*! This sensor mask must correspond to the physical layout of the node and is
 		 *  not supposed to change!
 		 *  The function will check if the received mask is valid for this type of node
@@ -155,20 +219,22 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		uint8_t setPhysicalSensorMask(uint8_t *);
 		
 		
-		//! It allows an installer to set a sensor mask of active sensors to a node via libelium-IDE
+		//! It allows an installer to set a sensor mask of active sensors to a node VIA-LIBELIUM-IDE
 		/*! The first argument must be the number of sensor types followed
-		 *! the next arguments must be of type SensorType
+		 *! The next arguments must be of type SensorType
 		 *  \@post:	activeSensorMaskLength will be set
+		 *  \@post: this mask will also be set as the node's physical sensor mask
 		 */
 		void setActiveSensorMask(int, ...);
 
 		
-		//! It allows to set the active sensors to be measured at different times and to do this
-		//! setings via the libelium IDE
+		//! It allows to set sensors to be measured at different times VIA-LIBELIUM-IDE
 		/*! The first argument must be the number of arguments (corresponding to the sensor) followed by
 		 *  The first sensor and its corresponding time
 		 *  The second sensor and its corresponding time
 		 *  ...
+		 *  \@post:	activeSensorMaskLength will be set
+		 *  \@post: this mask will also be set as the node's physical sensor mask		 
 		 */
 		uint8_t setActiveSensorMaskWithTimes(uint16_t, ...);
 		
@@ -183,18 +249,16 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		 *			0 : Successfully executed		 
 		 */
 		uint8_t setActiveSensorMask(uint8_t *);
-			
-		uint8_t getMaskLength(uint16_t);
-		uint8_t getNrActiveSensors(uint16_t);
+		
 
-		uint8_t disableSensors(uint16_t *);
+
 		void printSensorMask(uint16_t);
 		
 /*********************************************************************************************************
  *	DEEPSLEEP / HIBERNATE FUNCTIONALITY
  ********************************************************************************************************/
  
-
+		void storeProgramParametersToEEPROM();
 		
 /*********************************************************************************************************
  *	VARIABLE TIMING FUNCTIONALITY
@@ -244,10 +308,10 @@ class WaspXBeeZBNode : public WaspXBeeZB
  *	!!!	 addresses go from 292 to 4095. 
  */
 		uint8_t storeValue(int, uint8_t);
+		uint8_t storeValueADT(int, uint8_t);
 		
-		void storeProgramParametersToEEPROM();
 
-
+		void storeError(Errors);
 		
 		
 		//Addressing / Setup
@@ -361,17 +425,21 @@ class WaspXBeeZBNode : public WaspXBeeZB
 		 */
 		uint8_t notInNetworkNrMinutesToSleep;
 
-
+		bool mustSendSavedSensorValues;
+		
 		bool mustCalculateNextTimes;
 		bool lastArrayOfValues;
 		
 		uint8_t nrSleepTimes;
 		uint16_t * sleepTimes;
 
-		
-		//uint16_t * time2wValuesArray;
-		//uint16_t factor;
+
 		uint16_t hibernateCycleNumber;
+		
+	
+		uint8_t number_of_stored_errors;
+		
+		EncryptionMode encryptionMode;
 };
 
 
@@ -382,8 +450,8 @@ int compare(const void *, const void *);
 int gcd(int, int);
 uint16_t lcm(uint16_t, uint16_t);
 
-uint16_t toUint16_t(char &, char &);
-uint16_t toUint16_t(char *);
+//uint16_t toUint16_t(char &, char &);
+//uint16_t toUint16_t(char *);
 
 extern WaspXBeeZBNode	xbeeZB;
 

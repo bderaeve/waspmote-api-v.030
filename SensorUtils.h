@@ -1,16 +1,30 @@
 #ifndef SENSORUTILS_H
 #define SENSORUTILS_H
 
-/******************************************************************************
+/************************************************************************************************************
  * Includes
- ******************************************************************************/
+ ***********************************************************************************************************/
 #include <inttypes.h>
 
-/******************************************************************************
+
+/************************************************************************************************************
  * Definitions & Declarations
- ******************************************************************************/
+ ***********************************************************************************************************/
+#define MSByte(param) (( (unsigned int) param) / 256 )  //(i & 0xFF00)>>8;
+#define LSByte(param) (( (unsigned int) param) % 256 )  // i & 0x00FF;  assume compiler is smart enough
+
+#define ToMask(param) ( (uint16_t) ((  param[0] ) * 256 ) + (param[1]) )
+
 //#define SENS_DEBUG
 #define SENS_DEBUG_V2
+
+#define NUM_MEASUREMENTS 10
+#define NUM_SENSORS 10  //MUST BE <=16 FOR CURRENT EEPROM CONFIGURATION
+#define NUM_SENSORS_TO_SAVE 5
+#define MAX_LUMINOSITY 4
+#define MAX_NR_OF_SENSOR_SAVINGS 30
+
+typedef unsigned char byte;  ///Other types like uint8_t can be found in 'stdint.h'
 
 typedef enum {TEMPERATURE = 0x0001, HUMIDITY = 0x0002, PRESSURE = 0x0004, 
 	BATTERY = 0x0008, CO2 = 0x0010, ANEMO = 0x0020, VANE = 0x0040, PLUVIO = 0x0080,
@@ -23,34 +37,11 @@ typedef enum {VANE_N, VANE_NNE, VANE_NE, VANE_ENE,
 			  VANE_W, VANE_WNW, VANE_NW, VANE_NNW} 
 	VaneDirection;
 
-/*
-#define SENS_AGR_VANE_N		0
-#define SENS_AGR_VANE_NNE	1
-#define SENS_AGR_VANE_NE	2
-#define SENS_AGR_VANE_ENE	4
-#define SENS_AGR_VANE_E		8
-#define SENS_AGR_VANE_ESE	16
-#define SENS_AGR_VANE_SE	32
-#define SENS_AGR_VANE_SSE	64
-#define SENS_AGR_VANE_S		128
-#define SENS_AGR_VANE_SSW	256
-#define SENS_AGR_VANE_SW	512
-#define SENS_AGR_VANE_WSW	1024
-#define SENS_AGR_VANE_W		2048
-#define SENS_AGR_VANE_WNW	4096
-#define SENS_AGR_VANE_NW	8192
-#define SENS_AGR_VANE_NNW	16384
-*/	
-	
-#define NUM_MEASUREMENTS 10
-#define NUM_SENSORS 10  //MUST BE <=16 FOR CURRENT EEPROM CONFIGURATION
-
-
 //! Function pointers to save sensor data
 /*! Since the size of the data to insert is constant there's no reason to
 /*! make these functions non-static / member functions.
- *	\return	error=SensorType --> EEPROM FULL, request to send the values
- *			error=0	--> The command has been executed with no errors
+ *	\return	error = SensorType 	--> EEPROM FULL, request to send the values
+ *			error = 0			--> The command has been executed with no errors
  */	
 typedef uint16_t StoreSensorData();
 	extern uint16_t saveTemperature();
@@ -58,18 +49,28 @@ typedef uint16_t StoreSensorData();
 	extern uint16_t savePressure();
 	extern uint16_t saveBattery();
 	extern uint16_t saveCO2();
-	
+
+//! Function pointers to easily read the sensor data stored in EEPROM.	
+#ifdef POWER_MODES
+	typedef void ReadSensorSamplesFromEEPROM();
+		extern void readTemperatureFromEEPROM();
+		extern void readHumidityFromEEPROM();
+		extern void readPressureFromEEPROM();
+		extern void readBatteryFromEEPROM();
+		extern void readCO2FromEEPROM();
+#endif	
 
 
-/******************************************************************************
+/************************************************************************************************************
  * Class
- ******************************************************************************/
+ ***********************************************************************************************************/
  
 class SensorUtils
 {
 	private:
-		void (SensorUtils::*reader[8])(void);
-	
+		void (SensorUtils::*reader[NUM_SENSORS])(void);
+		void convertVaneDirection();
+		
 	public:
 		//! class constructor
 		/*!
@@ -126,44 +127,56 @@ class SensorUtils
 		*/		  
 		void measureCO2();  
 		
-		/// WEATHER_STATION //////////////////////////////////////////////////
+		/// WEATHER_STATION /////////////////////////////////////////////////////////////////////////////////
 		#ifdef WEATHER_STATION
+			//! It gets the current wind speed and stores in global 'anemo'. 
 			void measureAnemo();
+			
+			
+			//! It gets the current wind direction and stores in global 'vane'.
+			/*!
+			It calls 'convertVaneDirection()' which converts the float into a VaneDirection
+			*/
 			void measureVane();
 			
 			
 			//! It gets the current SENS_AGR_PLUVIOMETER value
 			/*!
 			It stores in global variable 'current_rainfall' the currently measured 
-			rainfall in mm/min.  (not very accurate)
+			rainfall in mm/min.  (not very accurate, please measure via ISR / pluviometerCounter )
 			*/				
 			void measureCurrentRainfall();
 			
 			
 			//! Interrupt Service Routine called when a PluvioInt has been generated
 			/*!
-			It stores the summative rainfall since the previous resetPluviometer(),
-			not yet in mm. Use getSummativeRainfall() to get the value in mm.
+			It stores the summative rainfall since the previous reset, in integer.
+			To get the value in mm: summativeRainfallInMM = float (pluviometerCounter) * 0.2794
+			(this will be done at the gateway / webinterface)
 			*/
 			void rainfall_ISR();
 			
 			
-			//! It stores the summative rainfall in mm since the previous resetPluviometer()
-			//! in global 'summativeRainfallInMM'
+			//! It stores the summative rainfall since the previous resetPluviometer()
 			void getSummativeRainfall();
 			
-			
+			//! It resets the pluviometerCounter. Intended to manually empty the meter via an 
+			/*! 'RESET_PLUVIO_METER' packet. Otherwise, by default the counter will be reset
+			    each two hours. To go back to default just sent the same packet again.
+			*/
 			void resetPluviometer();
 			
+			//! It gets the current luminosity and stores in float 'luminosity'.
 			void measureLuminosity();
+			
+			//! It gets the current luminosity and stores in float 'solar_radiation'.
 			void measureSolarRadiation();
 			
-			void convertVaneDirection();
-		#endif /*WEATHER_STATION*/ 
-		/// #endif /*WEATHER_STATION*/ //////////////////////////////////////////////	
+			
+		#endif /// WEATHER_STATION //////////////////////////////////////////////////////////////////////////	
 		
 		  
-		//! Measures all sensors found as arguments
+		//! Measures all sensors found as arguments,  meant to do measurements via the IDE
 		//!!!!! The first argument must be the number of sensor types followed
 		/*!!!!! This function takes care of all turning ON/OFF board and sensor requirements !!!!!
 		  \return  	error=2 --> The command has not been executed
@@ -173,7 +186,7 @@ class SensorUtils
 		uint8_t measureSensors(int, ...);
 		
 		  
-		//! Measures all sensors found in the mask argument
+		//! Measures all sensors found in the mask argument,  meant to use remotely.
 		/*!!!!! This function takes care of all turning ON/OFF board and sensor requirements !!!!!
 		  \return  	error=2 --> The command has not been executed
 					error=1 --> The MASK was 0, no sensors measured
@@ -193,15 +206,20 @@ class SensorUtils
 		uint8_t sensorValue2Chars(float, SensorType);
 		
 		
-		//! Measures and stores all sensors found in the mask argument
-		/*!!!!! This function takes care of all turning ON/OFF board and sensor requirements !!!!!
-		  \return  	error=3 --> EEPROM FULL, values must be sent
+		//! Stores all the measured sensors found in the mask argument (for HIBERNATE mode)
+		/*! \return	error=3 --> EEPROM FULL, values must be sent
 					error=2 --> The command has not been executed
 					error=1 --> The MASK was 0, no sensors measured
 					error=0 --> The command has been executed with no errors
 		*/		
-		uint8_t measureAndstoreSensorValues(uint16_t);
 		void storeMeasuredSensorValues(uint16_t);
+		
+		
+		//! Stores all the measured sensors found in the mask in RAM (for SLEEP modes)
+		/*! \return  mask containing the sensors that have used all the reserved space 
+		             and that must be send to the gateway.
+		*/
+		uint16_t keepSensorValueInMemory(uint16_t);
 		
 		
 		//! It enters the sensor's measuring interval time to the correct position in 
@@ -213,9 +231,18 @@ class SensorUtils
 		//! in EEPROM
 		void saveSensorMeasuringIntervalTimes();
 		
+		
 		//! It reads the values of the currently active sensors from EEPROM and stores them
 		//! into 'uint16_t measuringInterval[NUM_SENSORS]'
 		void readSensorMeasuringIntervalTimesFromEEPROM();
+		
+		
+		//! It reads sensor values from EEPROM in preparation to send them.
+		void copyEEPROMValuesToMemory();
+		
+		
+		
+		
 		
 		//! Variable : the averaged temperature value
 		/*!
@@ -228,8 +255,9 @@ class SensorUtils
 		/*!  *= 100 for 2 decimals accuracy
 		/*!	 --> fits in 2 bytes
 		 */		
-		unsigned char temp[2];
+		byte temp[2];
 
+		
 		//! Variable : the averaged humidity value
 		/*!
 		 */
@@ -238,7 +266,8 @@ class SensorUtils
 		//! Variable : the humidity value in bytes
 		/*! HUMIDITY SENSOR:   RANGE: 0 -> 100%
 		 */
-		unsigned char hum;
+		byte hum;
+
 		
 		//! Variable : the averaged atm pressure value
 		/*!
@@ -250,7 +279,8 @@ class SensorUtils
 		/*!   force in 2 bytes:  115000 - 2^16 = 50000  --> RANGE: 50kPa - 115kPa
 		/*!	  offset -= 50000
 		 */
-		unsigned char pres[2];
+		byte pres[2];
+		
 		
 		//! Variable : the averaged battery level
 		/*!
@@ -260,7 +290,8 @@ class SensorUtils
 		//! Variable : the battery level in bytes
 		/*! BATTERY LEVEL:   RANGE: 0 -> 100%
 		 */
-		unsigned char bat;
+		byte bat;
+
 		
 		//! Variable : the CO2 value
 		/*!
@@ -273,34 +304,66 @@ class SensorUtils
 		/*!   teaching and learning spaces) 
 		/*!	  --> 2B
 		 */
-		unsigned char co_2[2];		
+		byte co_2[2];
+
 		
 		//! Variable : the anemo value
 		/*! RANGE: 0 - 240 km/h
 		 */			
 		float anemo;
 		
-		unsigned char an;
+		//! Variable : the anemo value in bytes
+		/*! 
+		 */		
+		byte an;
+
 		
-		
-		//! Variable : the anemo value
+		//! Variable : the vane value
 		/*!
 		 */			
 		float vane;
 		
+		//! Variable : the vane value expressed as VaneDirection
+		/*!
+		 */
 		VaneDirection vaneDirection;
 		
-		
+		//! Variable : the pluvio value
+		/*!
+		 */	
 		float pluvio;
-		float summativeRainfallInMM;
-		unsigned char sum_rain[2];
+		
+		//! Variable : the pluvio value in bytes
+		/*!
+		 */
+		byte rain_count[2];
+		
+		//! Variable : the summative pluvio value ( incremented via the rainfall_ISR() )
+		/*!
+		 */			
 		uint16_t pluviometerCounter;
+
+		
 		bool startedRaining;
+
 		uint16_t startedRainingTime;
 		
 		float luminosity;
+		
+		byte lum;
+
+		byte savedLuminosities[MAX_NR_OF_SENSOR_SAVINGS];
 	
 		float solar_radiation;
+		byte radiation[2];
+		
+		//byte savedRadiations[ 2 * MAX_NR_OF_SENSOR_SAVINGS ];
+		
+		uint8_t savedPositions[NUM_SENSORS];
+		
+		#ifdef POWER_MODES	
+			byte savedValues[NUM_SENSORS][2 * MAX_NR_OF_SENSOR_SAVINGS];
+		#endif
 
 		//!
 		/*! Stores the individual measuring interval times of the sensors
@@ -320,6 +383,8 @@ class SensorUtils
 		uint16_t acceptedSensorMask;
 		
 		long previous;
+		
+		bool forceHighPerformance;
 	
  };
  
